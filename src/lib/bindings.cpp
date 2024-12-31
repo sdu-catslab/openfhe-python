@@ -893,12 +893,14 @@ void bind_crypto_context(py::module &m) {
             dynamic_cast<FHECKKSRNS *>(scheme_ptr->m_FHE.get()));
 
         std::vector<
-            std::tuple<uint64_t, std::vector<std::vector<std::vector<std::vector<uint64_t>>>>, std::vector<std::vector<std::vector<std::vector<uint64_t>>>>>>
+            std::tuple<uint64_t, std::vector<std::vector<std::vector<std::vector<uint64_t>>>>, std::vector<std::vector<std::vector<std::vector<uint64_t>>>>, std::vector<double>, std::vector<double>>>
             vecBootKey;
 
         for (auto &it : fhe_ptr->m_bootPrecomMap) {
           auto slot = it.first;
           auto precom = it.second;
+          std::vector<double> scfactor_U0hatTPreFFT;
+          std::vector<double> scfactor_U0PreFFT;
           std::vector<std::vector<std::vector<std::vector<uint64_t>>>> C2S_A;
           std::vector<std::vector<std::vector<std::vector<uint64_t>>>> S2C_A;
           for (size_t i = 0; i < precom->m_U0hatTPreFFT.size(); i++) {
@@ -909,6 +911,8 @@ void bind_crypto_context(py::module &m) {
                                .GetAllElements();
               std::vector<std::vector<uint64_t>> C2S_A_l1;
               for (size_t k = 0; k < polys.size(); k++) {
+                scfactor_U0hatTPreFFT.push_back(
+                    precom->m_U0hatTPreFFT[i][j]->GetScalingFactor());
                 std::vector<uint64_t> C2S_A_l0;
                 for (size_t l = 0; l < polys[k].GetValues().GetLength(); l++) {
                   auto ele = polys[k].at(l);
@@ -929,6 +933,8 @@ void bind_crypto_context(py::module &m) {
                                .GetAllElements();
               std::vector<std::vector<uint64_t>> S2C_A_l1;
               for (size_t k = 0; k < polys.size(); k++) {
+                scfactor_U0PreFFT.push_back(
+                    precom->m_U0PreFFT[i][j]->GetScalingFactor());
                 std::vector<uint64_t> S2C_A_l0;
                 for (size_t l = 0; l < polys[k].GetValues().GetLength(); l++) {
                   auto ele = polys[k].at(l);
@@ -940,9 +946,8 @@ void bind_crypto_context(py::module &m) {
             }
             S2C_A.push_back(S2C_A_l2);
           }
-          vecBootKey.push_back(std::make_tuple(slot, C2S_A, S2C_A));
+          vecBootKey.push_back(std::make_tuple(slot, C2S_A, S2C_A, scfactor_U0hatTPreFFT, scfactor_U0PreFFT));
         }
-
         return vecBootKey;
       });
 
