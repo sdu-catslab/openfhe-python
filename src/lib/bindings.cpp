@@ -909,10 +909,10 @@ void bind_crypto_context(py::module &m) {
               auto polys = precom->m_U0hatTPreFFT[i][j]
                                ->GetElement<DCRTPoly>()
                                .GetAllElements();
+              scfactor_U0hatTPreFFT.push_back(
+                    precom->m_U0hatTPreFFT[i][j]->GetScalingFactor());
               std::vector<std::vector<uint64_t>> C2S_A_l1;
               for (size_t k = 0; k < polys.size(); k++) {
-                scfactor_U0hatTPreFFT.push_back(
-                    precom->m_U0hatTPreFFT[i][j]->GetScalingFactor());
                 std::vector<uint64_t> C2S_A_l0;
                 for (size_t l = 0; l < polys[k].GetValues().GetLength(); l++) {
                   auto ele = polys[k].at(l);
@@ -931,10 +931,10 @@ void bind_crypto_context(py::module &m) {
               auto polys = precom->m_U0PreFFT[i][j]
                                ->GetElement<DCRTPoly>()
                                .GetAllElements();
+              scfactor_U0PreFFT.push_back(
+                    precom->m_U0PreFFT[i][j]->GetScalingFactor());
               std::vector<std::vector<uint64_t>> S2C_A_l1;
               for (size_t k = 0; k < polys.size(); k++) {
-                scfactor_U0PreFFT.push_back(
-                    precom->m_U0PreFFT[i][j]->GetScalingFactor());
                 std::vector<uint64_t> S2C_A_l0;
                 for (size_t l = 0; l < polys[k].GetValues().GetLength(); l++) {
                   auto ele = polys[k].at(l);
@@ -1242,8 +1242,8 @@ void bind_ciphertext(py::module &m) {
       .def("RemoveElement", &RemoveElementWrapper, cc_RemoveElement_docs)
       // .def("GetHopLevel", &CiphertextImpl<DCRTPoly>::GetHopLevel)
       // .def("SetHopLevel", &CiphertextImpl<DCRTPoly>::SetHopLevel)
-      // .def("GetScalingFactor", &CiphertextImpl<DCRTPoly>::GetScalingFactor)
-      // .def("SetScalingFactor", &CiphertextImpl<DCRTPoly>::SetScalingFactor)
+      .def("GetScalingFactor", &CiphertextImpl<DCRTPoly>::GetScalingFactor)
+      .def("SetScalingFactor", &CiphertextImpl<DCRTPoly>::SetScalingFactor)
       .def("GetSlots", &CiphertextImpl<DCRTPoly>::GetSlots)
       .def("SetSlots", &CiphertextImpl<DCRTPoly>::SetSlots)
       .def("GetNoiseScaleDeg", &CiphertextImpl<DCRTPoly>::GetNoiseScaleDeg)
