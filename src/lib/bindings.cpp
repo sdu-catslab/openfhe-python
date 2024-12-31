@@ -814,42 +814,35 @@ void bind_crypto_context(py::module &m) {
            [](CryptoContext<DCRTPoly> cc) {
              int num_dev;
              cudaGetDeviceCount(&num_dev);
-             auto multMap = cc->GetAllEvalMultKeys();
+             auto &multMap = cc->GetAllEvalMultKeys();
              assert(multMap.size() == 1);
-             std::vector<uint64_t> vecMultKeyB, vecMultKeyA;
+
+             auto &keyElementsB = multMap.begin()->second[0]->GetBVector();
+             auto &keyElementsA = multMap.begin()->second[0]->GetAVector();
+
+             size_t totalBSize =
+                 keyElementsB.size() * keyElementsB[0].GetNumOfElements() *
+                 keyElementsB[0].GetElementAtIndex(0).GetValues().GetLength();
+             size_t totalASize =
+                 keyElementsA.size() * keyElementsA[0].GetNumOfElements() *
+                 keyElementsA[0].GetElementAtIndex(0).GetValues().GetLength();
+
+             std::vector<uint64_t> vecMultKeyB(totalBSize);
+             std::vector<uint64_t> vecMultKeyA(totalASize);
+
+             size_t cur_index = 0;
              for (const auto &it : multMap) {
-               vecMultKeyB.reserve(
-                   it.second[0]->GetBVector().size() *
-                   it.second[0]->GetBVector()[0].GetNumOfElements() *
-                   it.second[0]
-                       ->GetBVector()[0]
-                       .GetElementAtIndex(0)
-                       .GetValues()
-                       .GetLength());
-               vecMultKeyA.reserve(
-                   it.second[0]->GetAVector().size() *
-                   it.second[0]->GetAVector()[0].GetNumOfElements() *
-                   it.second[0]
-                       ->GetAVector()[0]
-                       .GetElementAtIndex(0)
-                       .GetValues()
-                       .GetLength());
-               auto keyElementsB = it.second[0]->GetBVector();
-               auto keyElementsA = it.second[0]->GetAVector();
                for (size_t i = 0; i < keyElementsB.size(); i++) {
                  for (size_t j = 0; j < keyElementsB[i].GetNumOfElements();
                       j++) {
-                   for (size_t k = 0; k < keyElementsB[i]
-                                              .GetElementAtIndex(j)
-                                              .GetValues()
-                                              .GetLength();
-                        k++) {
-                     vecMultKeyB.push_back(uint64_t(
-                         keyElementsB[i].GetElementAtIndex(j).GetValues().at(
-                             k)));
-                     vecMultKeyA.push_back(uint64_t(
-                         keyElementsA[i].GetElementAtIndex(j).GetValues().at(
-                             k)));
+                   auto &valuesB =
+                       keyElementsB[i].GetElementAtIndex(j).GetValues();
+                   auto &valuesA =
+                       keyElementsA[i].GetElementAtIndex(j).GetValues();
+                   for (size_t k = 0; k < valuesB.GetLength(); k++) {
+                     vecMultKeyB[cur_index] = uint64_t(valuesB.at(k));
+                     vecMultKeyA[cur_index] = uint64_t(valuesA.at(k));
+                     cur_index++;
                    }
                  }
                }
@@ -868,38 +861,19 @@ void bind_crypto_context(py::module &m) {
              for (const auto &AutomorphismKey : evalAutomorphismKeyMap) {
                for (const auto &it : (*AutomorphismKey.second)) {
                  std::vector<uint64_t> vecAutomorphismKeyA, vecAutomorphismKeyB;
-                 vecAutomorphismKeyA.reserve(
-                     it.second->GetAVector().size() *
-                     it.second->GetAVector()[0].GetNumOfElements() *
-                     it.second->GetAVector()[0]
-                         .GetElementAtIndex(0)
-                         .GetValues()
-                         .GetLength());
-                 vecAutomorphismKeyB.reserve(
-                     it.second->GetBVector().size() *
-                     it.second->GetBVector()[0].GetNumOfElements() *
-                     it.second->GetBVector()[0]
-                         .GetElementAtIndex(0)
-                         .GetValues()
-                         .GetLength());
-
                  auto keyIndex = it.first;
-                 auto keyElementsB = it.second->GetBVector();
-                 auto keyElementsA = it.second->GetAVector();
+                 auto &keyElementsB = it.second->GetBVector();
+                 auto &keyElementsA = it.second->GetAVector();
                  for (size_t i = 0; i < keyElementsB.size(); i++) {
                    for (size_t j = 0; j < keyElementsB[i].GetNumOfElements();
                         j++) {
-                     for (size_t k = 0; k < keyElementsB[i]
-                                                .GetElementAtIndex(j)
-                                                .GetValues()
-                                                .GetLength();
-                          k++) {
-                       vecAutomorphismKeyB.push_back(uint64_t(
-                           keyElementsB[i].GetElementAtIndex(j).GetValues().at(
-                               k)));
-                       vecAutomorphismKeyA.push_back(uint64_t(
-                           keyElementsA[i].GetElementAtIndex(j).GetValues().at(
-                               k)));
+                     auto &valuesB =
+                         keyElementsB[i].GetElementAtIndex(j).GetValues();
+                     auto &valuesA =
+                         keyElementsA[i].GetElementAtIndex(j).GetValues();
+                     for (size_t k = 0; k < valuesB.GetLength(); k++) {
+                       vecAutomorphismKeyB.push_back(uint64_t(valuesB.at(k)));
+                       vecAutomorphismKeyA.push_back(uint64_t(valuesA.at(k)));
                      }
                    }
                  }
@@ -919,54 +893,52 @@ void bind_crypto_context(py::module &m) {
             dynamic_cast<FHECKKSRNS *>(scheme_ptr->m_FHE.get()));
 
         std::vector<
-            std::tuple<uint64_t, std::vector<uint64_t>, std::vector<uint64_t>>>
+            std::tuple<uint64_t, std::vector<std::vector<std::vector<std::vector<uint64_t>>>>, std::vector<std::vector<std::vector<std::vector<uint64_t>>>>>>
             vecBootKey;
 
         for (auto &it : fhe_ptr->m_bootPrecomMap) {
           auto slot = it.first;
           auto precom = it.second;
-          std::vector<uint64_t> C2S_A;
-          std::vector<uint64_t> S2C_A;
-          C2S_A.reserve(precom->m_U0hatTPreFFT.size() *
-                        precom->m_U0hatTPreFFT[0].size() *
-                        precom->m_U0hatTPreFFT[0][0]
-                            ->GetElement<DCRTPoly>()
-                            .GetAllElements()[0]
-                            .GetValues()
-                            .GetLength());
-          S2C_A.reserve(precom->m_U0PreFFT.size() *
-                        precom->m_U0PreFFT[0].size() *
-                        precom->m_U0PreFFT[0][0]
-                            ->GetElement<DCRTPoly>()
-                            .GetAllElements()[0]
-                            .GetValues()
-                            .GetLength());
+          std::vector<std::vector<std::vector<std::vector<uint64_t>>>> C2S_A;
+          std::vector<std::vector<std::vector<std::vector<uint64_t>>>> S2C_A;
           for (size_t i = 0; i < precom->m_U0hatTPreFFT.size(); i++) {
+            std::vector<std::vector<std::vector<uint64_t>>> C2S_A_l2;
             for (size_t j = 0; j < precom->m_U0hatTPreFFT[i].size(); j++) {
               auto polys = precom->m_U0hatTPreFFT[i][j]
                                ->GetElement<DCRTPoly>()
                                .GetAllElements();
+              std::vector<std::vector<uint64_t>> C2S_A_l1;
               for (size_t k = 0; k < polys.size(); k++) {
+                std::vector<uint64_t> C2S_A_l0;
                 for (size_t l = 0; l < polys[k].GetValues().GetLength(); l++) {
                   auto ele = polys[k].at(l);
-                  C2S_A.push_back(uint64_t(ele));
+                  C2S_A_l0.push_back(uint64_t(ele));
                 }
+                C2S_A_l1.push_back(C2S_A_l0);
               }
+              C2S_A_l2.push_back(C2S_A_l1);
             }
+            C2S_A.push_back(C2S_A_l2);
           }
 
           for (size_t i = 0; i < precom->m_U0PreFFT.size(); i++) {
+            std::vector<std::vector<std::vector<uint64_t>>> S2C_A_l2;
             for (size_t j = 0; j < precom->m_U0PreFFT[i].size(); j++) {
               auto polys = precom->m_U0PreFFT[i][j]
                                ->GetElement<DCRTPoly>()
                                .GetAllElements();
+              std::vector<std::vector<uint64_t>> S2C_A_l1;
               for (size_t k = 0; k < polys.size(); k++) {
+                std::vector<uint64_t> S2C_A_l0;
                 for (size_t l = 0; l < polys[k].GetValues().GetLength(); l++) {
                   auto ele = polys[k].at(l);
-                  S2C_A.push_back(uint64_t(ele));
+                  S2C_A_l0.push_back(uint64_t(ele));
                 }
+                S2C_A_l1.push_back(S2C_A_l0);
               }
+              S2C_A_l2.push_back(S2C_A_l1);
             }
+            S2C_A.push_back(S2C_A_l2);
           }
           vecBootKey.push_back(std::make_tuple(slot, C2S_A, S2C_A));
         }
