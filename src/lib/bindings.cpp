@@ -1240,8 +1240,8 @@ void bind_ciphertext(py::module &m) {
            py::arg("level"))
       .def("Clone", &CiphertextImpl<DCRTPoly>::Clone)
       .def("RemoveElement", &RemoveElementWrapper, cc_RemoveElement_docs)
-      // .def("GetHopLevel", &CiphertextImpl<DCRTPoly>::GetHopLevel)
-      // .def("SetHopLevel", &CiphertextImpl<DCRTPoly>::SetHopLevel)
+      .def("GetHopLevel", &CiphertextImpl<DCRTPoly>::GetHopLevel)
+      .def("SetHopLevel", &CiphertextImpl<DCRTPoly>::SetHopLevel)
       .def("GetScalingFactor", &CiphertextImpl<DCRTPoly>::GetScalingFactor)
       .def("SetScalingFactor", &CiphertextImpl<DCRTPoly>::SetScalingFactor)
       .def("GetSlots", &CiphertextImpl<DCRTPoly>::GetSlots)
@@ -1282,6 +1282,10 @@ void bind_ciphertext(py::module &m) {
              // auto ciphertextElements = ciphertext.GetElements();
              int num_dev;
              cudaGetDeviceCount(&num_dev);
+             for (size_t i = 0; i < data.size(); ++i) {
+               ciphertext.GetElements()[i].DropLastElements(ciphertext.GetElements()[i].GetAllElements().size() -
+                    cur_limb);
+             }
              for (size_t i = 0; i < data.size(); ++i) {
                for (size_t j = 0; j < cur_limb; ++j) {
                  for (size_t k = 0; k < data[i][j].size(); ++k) {
