@@ -815,7 +815,23 @@ void bind_crypto_context(py::module &m) {
              int num_dev;
              cudaGetDeviceCount(&num_dev);
              auto &multMap = cc->GetAllEvalMultKeys();
+             auto &multMap = cc->GetAllEvalMultKeys();
              assert(multMap.size() == 1);
+
+             auto &keyElementsB = multMap.begin()->second[0]->GetBVector();
+             auto &keyElementsA = multMap.begin()->second[0]->GetAVector();
+
+             size_t totalBSize =
+                 keyElementsB.size() * keyElementsB[0].GetNumOfElements() *
+                 keyElementsB[0].GetElementAtIndex(0).GetValues().GetLength();
+             size_t totalASize =
+                 keyElementsA.size() * keyElementsA[0].GetNumOfElements() *
+                 keyElementsA[0].GetElementAtIndex(0).GetValues().GetLength();
+
+             std::vector<uint64_t> vecMultKeyB(totalBSize);
+             std::vector<uint64_t> vecMultKeyA(totalASize);
+
+             size_t cur_index = 0;
 
              auto &keyElementsB = multMap.begin()->second[0]->GetBVector();
              auto &keyElementsA = multMap.begin()->second[0]->GetAVector();
@@ -835,6 +851,14 @@ void bind_crypto_context(py::module &m) {
                for (size_t i = 0; i < keyElementsB.size(); i++) {
                  for (size_t j = 0; j < keyElementsB[i].GetNumOfElements();
                       j++) {
+                   auto &valuesB =
+                       keyElementsB[i].GetElementAtIndex(j).GetValues();
+                   auto &valuesA =
+                       keyElementsA[i].GetElementAtIndex(j).GetValues();
+                   for (size_t k = 0; k < valuesB.GetLength(); k++) {
+                     vecMultKeyB[cur_index] = uint64_t(valuesB.at(k));
+                     vecMultKeyA[cur_index] = uint64_t(valuesA.at(k));
+                     cur_index++;
                    auto &valuesB =
                        keyElementsB[i].GetElementAtIndex(j).GetValues();
                    auto &valuesA =
@@ -864,9 +888,18 @@ void bind_crypto_context(py::module &m) {
                  auto keyIndex = it.first;
                  auto &keyElementsB = it.second->GetBVector();
                  auto &keyElementsA = it.second->GetAVector();
+                 auto &keyElementsB = it.second->GetBVector();
+                 auto &keyElementsA = it.second->GetAVector();
                  for (size_t i = 0; i < keyElementsB.size(); i++) {
                    for (size_t j = 0; j < keyElementsB[i].GetNumOfElements();
                         j++) {
+                     auto &valuesB =
+                         keyElementsB[i].GetElementAtIndex(j).GetValues();
+                     auto &valuesA =
+                         keyElementsA[i].GetElementAtIndex(j).GetValues();
+                     for (size_t k = 0; k < valuesB.GetLength(); k++) {
+                       vecAutomorphismKeyB.push_back(uint64_t(valuesB.at(k)));
+                       vecAutomorphismKeyA.push_back(uint64_t(valuesA.at(k)));
                      auto &valuesB =
                          keyElementsB[i].GetElementAtIndex(j).GetValues();
                      auto &valuesA =
@@ -893,12 +926,14 @@ void bind_crypto_context(py::module &m) {
             dynamic_cast<FHECKKSRNS *>(scheme_ptr->m_FHE.get()));
 
         std::vector<
-            std::tuple<uint64_t, std::vector<std::vector<std::vector<std::vector<uint64_t>>>>, std::vector<std::vector<std::vector<std::vector<uint64_t>>>>>>
+            std::tuple<uint64_t, std::vector<std::vector<std::vector<std::vector<uint64_t>>>>, std::vector<std::vector<std::vector<std::vector<uint64_t>>>>, std::vector<double>, std::vector<double>>>
             vecBootKey;
 
         for (auto &it : fhe_ptr->m_bootPrecomMap) {
           auto slot = it.first;
           auto precom = it.second;
+          std::vector<double> scfactor_U0hatTPreFFT;
+          std::vector<double> scfactor_U0PreFFT;
           std::vector<std::vector<std::vector<std::vector<uint64_t>>>> C2S_A;
           std::vector<std::vector<std::vector<std::vector<uint64_t>>>> S2C_A;
           for (size_t i = 0; i < precom->m_U0hatTPreFFT.size(); i++) {
@@ -907,6 +942,8 @@ void bind_crypto_context(py::module &m) {
               auto polys = precom->m_U0hatTPreFFT[i][j]
                                ->GetElement<DCRTPoly>()
                                .GetAllElements();
+              scfactor_U0hatTPreFFT.push_back(
+                    precom->m_U0hatTPreFFT[i][j]->GetScalingFactor());
               std::vector<std::vector<uint64_t>> C2S_A_l1;
               for (size_t k = 0; k < polys.size(); k++) {
                 std::vector<uint64_t> C2S_A_l0;
@@ -927,6 +964,8 @@ void bind_crypto_context(py::module &m) {
               auto polys = precom->m_U0PreFFT[i][j]
                                ->GetElement<DCRTPoly>()
                                .GetAllElements();
+              scfactor_U0PreFFT.push_back(
+                    precom->m_U0PreFFT[i][j]->GetScalingFactor());
               std::vector<std::vector<uint64_t>> S2C_A_l1;
               for (size_t k = 0; k < polys.size(); k++) {
                 std::vector<uint64_t> S2C_A_l0;
@@ -940,9 +979,8 @@ void bind_crypto_context(py::module &m) {
             }
             S2C_A.push_back(S2C_A_l2);
           }
-          vecBootKey.push_back(std::make_tuple(slot, C2S_A, S2C_A));
+          vecBootKey.push_back(std::make_tuple(slot, C2S_A, S2C_A, scfactor_U0hatTPreFFT, scfactor_U0PreFFT));
         }
-
         return vecBootKey;
       });
 
@@ -1246,10 +1284,10 @@ void bind_ciphertext(py::module &m) {
            py::arg("level"))
       .def("Clone", &CiphertextImpl<DCRTPoly>::Clone)
       .def("RemoveElement", &RemoveElementWrapper, cc_RemoveElement_docs)
-      // .def("GetHopLevel", &CiphertextImpl<DCRTPoly>::GetHopLevel)
-      // .def("SetHopLevel", &CiphertextImpl<DCRTPoly>::SetHopLevel)
-      // .def("GetScalingFactor", &CiphertextImpl<DCRTPoly>::GetScalingFactor)
-      // .def("SetScalingFactor", &CiphertextImpl<DCRTPoly>::SetScalingFactor)
+      .def("GetHopLevel", &CiphertextImpl<DCRTPoly>::GetHopLevel)
+      .def("SetHopLevel", &CiphertextImpl<DCRTPoly>::SetHopLevel)
+      .def("GetScalingFactor", &CiphertextImpl<DCRTPoly>::GetScalingFactor)
+      .def("SetScalingFactor", &CiphertextImpl<DCRTPoly>::SetScalingFactor)
       .def("GetSlots", &CiphertextImpl<DCRTPoly>::GetSlots)
       .def("SetSlots", &CiphertextImpl<DCRTPoly>::SetSlots)
       .def("GetNoiseScaleDeg", &CiphertextImpl<DCRTPoly>::GetNoiseScaleDeg)
@@ -1288,6 +1326,10 @@ void bind_ciphertext(py::module &m) {
              // auto ciphertextElements = ciphertext.GetElements();
              int num_dev;
              cudaGetDeviceCount(&num_dev);
+             for (size_t i = 0; i < data.size(); ++i) {
+               ciphertext.GetElements()[i].DropLastElements(ciphertext.GetElements()[i].GetAllElements().size() -
+                    cur_limb);
+             }
              for (size_t i = 0; i < data.size(); ++i) {
                for (size_t j = 0; j < cur_limb; ++j) {
                  for (size_t k = 0; k < data[i][j].size(); ++k) {
