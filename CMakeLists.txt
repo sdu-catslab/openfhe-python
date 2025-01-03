@@ -1,6 +1,6 @@
 cmake_minimum_required (VERSION 3.5.1)
 
-project (OpenFHE-Python LANGUAGES CXX CUDA)
+project (OpenFHE-Python)
 
 set(OPENFHE_PYTHON_VERSION_MAJOR 0)
 set(OPENFHE_PYTHON_VERSION_MINOR 8)
@@ -16,13 +16,6 @@ endif()
 
 find_package(OpenFHE 1.2.2 REQUIRED)
 find_package(pybind11 REQUIRED)
-
-find_package(CUDA REQUIRED)
-message(INFO "CUDA Version: ${CUDA_VERSION}")
-message(INFO "CUDA Include: ${CUDA_INCLUDE_DIRS}")
-message(INFO "CUDA Lib: ${CUDA_LIBRARIES}")
-include_directories(${CUDA_INCLUDE_DIRS})
-link_directories(${CUDA_LIBRARIES}/lib64)
 
 # "CMAKE_INTERPROCEDURAL_OPTIMIZATION ON" (ON is the default value) causes link failure. see
 # https://github.com/openfheorg/openfhe-python/actions/runs/11492843373/job/31987579944
