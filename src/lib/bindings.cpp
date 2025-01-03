@@ -785,8 +785,6 @@ void bind_crypto_context(py::module &m) {
           py::arg("sertype"))
       .def("GetPQ",
            [](CryptoContext<DCRTPoly> cc) {
-             int num_dev;
-             cudaGetDeviceCount(&num_dev);
              auto cryptoParams =
                  std::dynamic_pointer_cast<CryptoParametersCKKSRNS>(
                      cc->GetCryptoParameters());
@@ -812,26 +810,8 @@ void bind_crypto_context(py::module &m) {
            })
       .def("GetEvalMultKey",
            [](CryptoContext<DCRTPoly> cc) {
-             int num_dev;
-             cudaGetDeviceCount(&num_dev);
-             auto &multMap = cc->GetAllEvalMultKeys();
              auto &multMap = cc->GetAllEvalMultKeys();
              assert(multMap.size() == 1);
-
-             auto &keyElementsB = multMap.begin()->second[0]->GetBVector();
-             auto &keyElementsA = multMap.begin()->second[0]->GetAVector();
-
-             size_t totalBSize =
-                 keyElementsB.size() * keyElementsB[0].GetNumOfElements() *
-                 keyElementsB[0].GetElementAtIndex(0).GetValues().GetLength();
-             size_t totalASize =
-                 keyElementsA.size() * keyElementsA[0].GetNumOfElements() *
-                 keyElementsA[0].GetElementAtIndex(0).GetValues().GetLength();
-
-             std::vector<uint64_t> vecMultKeyB(totalBSize);
-             std::vector<uint64_t> vecMultKeyA(totalASize);
-
-             size_t cur_index = 0;
 
              auto &keyElementsB = multMap.begin()->second[0]->GetBVector();
              auto &keyElementsA = multMap.begin()->second[0]->GetAVector();
@@ -859,14 +839,6 @@ void bind_crypto_context(py::module &m) {
                      vecMultKeyB[cur_index] = uint64_t(valuesB.at(k));
                      vecMultKeyA[cur_index] = uint64_t(valuesA.at(k));
                      cur_index++;
-                   auto &valuesB =
-                       keyElementsB[i].GetElementAtIndex(j).GetValues();
-                   auto &valuesA =
-                       keyElementsA[i].GetElementAtIndex(j).GetValues();
-                   for (size_t k = 0; k < valuesB.GetLength(); k++) {
-                     vecMultKeyB[cur_index] = uint64_t(valuesB.at(k));
-                     vecMultKeyA[cur_index] = uint64_t(valuesA.at(k));
-                     cur_index++;
                    }
                  }
                }
@@ -875,8 +847,6 @@ void bind_crypto_context(py::module &m) {
            })
       .def("GetEvalRotateKey",
            [](CryptoContext<DCRTPoly> cc) {
-             int num_dev;
-             cudaGetDeviceCount(&num_dev);
              std::vector<std::tuple<uint64_t, std::vector<uint64_t>,
                                     std::vector<uint64_t>>>
                  vecRotateKey;
@@ -884,12 +854,18 @@ void bind_crypto_context(py::module &m) {
              assert(evalAutomorphismKeyMap.size() == 1);
              for (const auto &AutomorphismKey : evalAutomorphismKeyMap) {
                for (const auto &it : (*AutomorphismKey.second)) {
-                 std::vector<uint64_t> vecAutomorphismKeyA, vecAutomorphismKeyB;
                  auto keyIndex = it.first;
                  auto &keyElementsB = it.second->GetBVector();
                  auto &keyElementsA = it.second->GetAVector();
-                 auto &keyElementsB = it.second->GetBVector();
-                 auto &keyElementsA = it.second->GetAVector();
+                 size_t total_size = keyElementsB.size() *
+                                     keyElementsB[0].GetNumOfElements() *
+                                     keyElementsB[0].GetElementAtIndex(0)
+                                         .GetValues()
+                                         .GetLength();
+
+                 std::vector<uint64_t> vecAutomorphismKeyA(total_size);
+                 std::vector<uint64_t> vecAutomorphismKeyB(total_size);
+                 size_t index = 0;
                  for (size_t i = 0; i < keyElementsB.size(); i++) {
                    for (size_t j = 0; j < keyElementsB[i].GetNumOfElements();
                         j++) {
@@ -898,15 +874,9 @@ void bind_crypto_context(py::module &m) {
                      auto &valuesA =
                          keyElementsA[i].GetElementAtIndex(j).GetValues();
                      for (size_t k = 0; k < valuesB.GetLength(); k++) {
-                       vecAutomorphismKeyB.push_back(uint64_t(valuesB.at(k)));
-                       vecAutomorphismKeyA.push_back(uint64_t(valuesA.at(k)));
-                     auto &valuesB =
-                         keyElementsB[i].GetElementAtIndex(j).GetValues();
-                     auto &valuesA =
-                         keyElementsA[i].GetElementAtIndex(j).GetValues();
-                     for (size_t k = 0; k < valuesB.GetLength(); k++) {
-                       vecAutomorphismKeyB.push_back(uint64_t(valuesB.at(k)));
-                       vecAutomorphismKeyA.push_back(uint64_t(valuesA.at(k)));
+                       vecAutomorphismKeyB[index] = uint64_t(valuesB[k]);
+                       vecAutomorphismKeyA[index] = uint64_t(valuesA[k]);
+                       index++;
                      }
                    }
                  }
@@ -917,9 +887,6 @@ void bind_crypto_context(py::module &m) {
              return vecRotateKey;
            })
       .def("GetEvalBootstrapKey", [](CryptoContext<DCRTPoly> cc) {
-        int num_dev;
-        cudaGetDeviceCount(&num_dev);
-
         SchemeBase_TWIN *scheme_ptr =
             reinterpret_cast<SchemeBase_TWIN *>(cc->GetScheme().get());
         auto fhe_ptr = reinterpret_cast<FHECKKSRNS_TWIN *>(
@@ -939,7 +906,7 @@ void bind_crypto_context(py::module &m) {
           for (size_t i = 0; i < precom->m_U0hatTPreFFT.size(); i++) {
             std::vector<std::vector<std::vector<uint64_t>>> C2S_A_l2;
             for (size_t j = 0; j < precom->m_U0hatTPreFFT[i].size(); j++) {
-              auto polys = precom->m_U0hatTPreFFT[i][j]
+              auto &polys = precom->m_U0hatTPreFFT[i][j]
                                ->GetElement<DCRTPoly>()
                                .GetAllElements();
               scfactor_U0hatTPreFFT.push_back(
@@ -948,7 +915,7 @@ void bind_crypto_context(py::module &m) {
               for (size_t k = 0; k < polys.size(); k++) {
                 std::vector<uint64_t> C2S_A_l0;
                 for (size_t l = 0; l < polys[k].GetValues().GetLength(); l++) {
-                  auto ele = polys[k].at(l);
+                  auto &ele = polys[k][l];
                   C2S_A_l0.push_back(uint64_t(ele));
                 }
                 C2S_A_l1.push_back(C2S_A_l0);
@@ -961,7 +928,7 @@ void bind_crypto_context(py::module &m) {
           for (size_t i = 0; i < precom->m_U0PreFFT.size(); i++) {
             std::vector<std::vector<std::vector<uint64_t>>> S2C_A_l2;
             for (size_t j = 0; j < precom->m_U0PreFFT[i].size(); j++) {
-              auto polys = precom->m_U0PreFFT[i][j]
+              auto &polys = precom->m_U0PreFFT[i][j]
                                ->GetElement<DCRTPoly>()
                                .GetAllElements();
               scfactor_U0PreFFT.push_back(
@@ -970,7 +937,7 @@ void bind_crypto_context(py::module &m) {
               for (size_t k = 0; k < polys.size(); k++) {
                 std::vector<uint64_t> S2C_A_l0;
                 for (size_t l = 0; l < polys[k].GetValues().GetLength(); l++) {
-                  auto ele = polys[k].at(l);
+                  auto &ele = polys[k][l];
                   S2C_A_l0.push_back(uint64_t(ele));
                 }
                 S2C_A_l1.push_back(S2C_A_l0);
@@ -1252,17 +1219,6 @@ void bind_encodings(py::module &m) {
         std::stringstream ss;
         ss << p;
         return ss.str();
-           })
-      .def("GetVectorOfData", [](PlaintextImpl &plaintext) {
-        auto ptElements = plaintext.GetElement<DCRTPoly>();
-        std::vector<uint64_t> vecPt;
-        for (int i = 0; i <  ptElements.GetNumOfElements(); ++i) {
-            for (int j = 0; j < ptElements.GetElementAtIndex(i).GetValues().GetLength(); ++j) {
-                auto ele = ptElements.GetElementAtIndex(i).at(j);
-                vecPt.push_back(uint64_t(ele));
-            }
-        }
-        return vecPt;
       });
 }
 
@@ -1295,8 +1251,6 @@ void bind_ciphertext(py::module &m) {
       .def(
           "GetVectorOfData",
           [](CiphertextImpl<DCRTPoly> &ciphertext) {
-            int num_dev;
-            cudaGetDeviceCount(&num_dev);
             std::vector<std::vector<std::vector<uint64_t>>> res;
             auto ciphertextElements = ciphertext.GetElements();
             for (size_t i = 0; i < ciphertextElements.size(); ++i) {
@@ -1324,8 +1278,6 @@ void bind_ciphertext(py::module &m) {
               std::vector<std::vector<std::vector<uint64_t>>> data,
               int cur_limb) {
              // auto ciphertextElements = ciphertext.GetElements();
-             int num_dev;
-             cudaGetDeviceCount(&num_dev);
              for (size_t i = 0; i < data.size(); ++i) {
                ciphertext.GetElements()[i].DropLastElements(ciphertext.GetElements()[i].GetAllElements().size() -
                     cur_limb);
