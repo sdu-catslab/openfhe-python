@@ -9,7 +9,6 @@
 #include "openfhe.h"
 #include "plaintext_docs.h"
 #include "serialization.h"
-#include <cuda_runtime.h>
 #include <iostream>
 #include <map>
 #include <pybind11/complex.h>
