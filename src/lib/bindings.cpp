@@ -858,7 +858,8 @@ void bind_crypto_context(py::module &m) {
                  auto &keyElementsA = it.second->GetAVector();
                  size_t total_size = keyElementsB.size() *
                                      keyElementsB[0].GetNumOfElements() *
-                                     keyElementsB[0].GetElementAtIndex(0)
+                                     keyElementsB[0]
+                                         .GetElementAtIndex(0)
                                          .GetValues()
                                          .GetLength();
 
@@ -891,8 +892,11 @@ void bind_crypto_context(py::module &m) {
         auto fhe_ptr = reinterpret_cast<FHECKKSRNS_TWIN *>(
             dynamic_cast<FHECKKSRNS *>(scheme_ptr->m_FHE.get()));
 
-        std::vector<
-            std::tuple<uint64_t, std::vector<std::vector<std::vector<std::vector<uint64_t>>>>, std::vector<std::vector<std::vector<std::vector<uint64_t>>>>, std::vector<double>, std::vector<double>>>
+        std::vector<std::tuple<
+            uint64_t,
+            std::vector<std::vector<std::vector<std::vector<uint64_t>>>>,
+            std::vector<std::vector<std::vector<std::vector<uint64_t>>>>,
+            std::vector<double>, std::vector<double>>>
             vecBootKey;
 
         for (auto &it : fhe_ptr->m_bootPrecomMap) {
@@ -906,10 +910,10 @@ void bind_crypto_context(py::module &m) {
             std::vector<std::vector<std::vector<uint64_t>>> C2S_A_l2;
             for (size_t j = 0; j < precom->m_U0hatTPreFFT[i].size(); j++) {
               auto &polys = precom->m_U0hatTPreFFT[i][j]
-                               ->GetElement<DCRTPoly>()
-                               .GetAllElements();
+                                ->GetElement<DCRTPoly>()
+                                .GetAllElements();
               scfactor_U0hatTPreFFT.push_back(
-                    precom->m_U0hatTPreFFT[i][j]->GetScalingFactor());
+                  precom->m_U0hatTPreFFT[i][j]->GetScalingFactor());
               std::vector<std::vector<uint64_t>> C2S_A_l1;
               for (size_t k = 0; k < polys.size(); k++) {
                 std::vector<uint64_t> C2S_A_l0;
@@ -928,10 +932,10 @@ void bind_crypto_context(py::module &m) {
             std::vector<std::vector<std::vector<uint64_t>>> S2C_A_l2;
             for (size_t j = 0; j < precom->m_U0PreFFT[i].size(); j++) {
               auto &polys = precom->m_U0PreFFT[i][j]
-                               ->GetElement<DCRTPoly>()
-                               .GetAllElements();
+                                ->GetElement<DCRTPoly>()
+                                .GetAllElements();
               scfactor_U0PreFFT.push_back(
-                    precom->m_U0PreFFT[i][j]->GetScalingFactor());
+                  precom->m_U0PreFFT[i][j]->GetScalingFactor());
               std::vector<std::vector<uint64_t>> S2C_A_l1;
               for (size_t k = 0; k < polys.size(); k++) {
                 std::vector<uint64_t> S2C_A_l0;
@@ -945,7 +949,8 @@ void bind_crypto_context(py::module &m) {
             }
             S2C_A.push_back(S2C_A_l2);
           }
-          vecBootKey.push_back(std::make_tuple(slot, C2S_A, S2C_A, scfactor_U0hatTPreFFT, scfactor_U0PreFFT));
+          vecBootKey.push_back(std::make_tuple(
+              slot, C2S_A, S2C_A, scfactor_U0hatTPreFFT, scfactor_U0PreFFT));
         }
         return vecBootKey;
       });
@@ -1208,6 +1213,21 @@ void bind_encodings(py::module &m) {
       .def("SetStringValue", &PlaintextImpl::SetStringValue)
       .def("SetIntVectorValue", &PlaintextImpl::SetIntVectorValue)
       .def("GetFormattedValues", &PlaintextImpl::GetFormattedValues)
+      .def("GetVectorOfData",
+           [](PlaintextImpl &plaintext) {
+             std::vector<std::vector<uint64_t>> res;
+             auto plaintextElements = plaintext.GetElement<DCRTPoly>();
+             for (size_t j = 0; j < plaintextElements.GetNumOfElements(); ++j) {
+               std::vector<uint64_t> vec;
+               auto &poly = plaintextElements.GetElementAtIndex(j);
+               for (size_t k = 0; k < poly.GetValues().GetLength(); ++k) {
+                 vec.push_back(uint64_t(poly.at(k)));
+               }
+               res.push_back(vec);
+             }
+             return res;
+           })
+
       .def("__repr__",
            [](const PlaintextImpl &p) {
              std::stringstream ss;
@@ -1278,8 +1298,9 @@ void bind_ciphertext(py::module &m) {
               int cur_limb) {
              // auto ciphertextElements = ciphertext.GetElements();
              for (size_t i = 0; i < data.size(); ++i) {
-               ciphertext.GetElements()[i].DropLastElements(ciphertext.GetElements()[i].GetAllElements().size() -
-                    cur_limb);
+               ciphertext.GetElements()[i].DropLastElements(
+                   ciphertext.GetElements()[i].GetAllElements().size() -
+                   cur_limb);
              }
              for (size_t i = 0; i < data.size(); ++i) {
                for (size_t j = 0; j < cur_limb; ++j) {
