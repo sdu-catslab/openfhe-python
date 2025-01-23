@@ -14,6 +14,7 @@
 #include <pybind11/complex.h>
 #include <pybind11/functional.h>
 #include <pybind11/iostream.h>
+#include <pybind11/numpy.h>
 #include <pybind11/operators.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -822,8 +823,12 @@ void bind_crypto_context(py::module &m) {
                  keyElementsA.size() * keyElementsA[0].GetNumOfElements() *
                  keyElementsA[0].GetElementAtIndex(0).GetValues().GetLength();
 
-             std::vector<uint64_t> vecMultKeyB(totalBSize);
-             std::vector<uint64_t> vecMultKeyA(totalASize);
+             py::array_t<uint64_t> vecMultKeyB(totalBSize);
+             py::array_t<uint64_t> vecMultKeyA(totalASize);
+             auto bufB = vecMultKeyB.request();
+             auto bufA = vecMultKeyA.request();
+             uint64_t *ptrB = static_cast<uint64_t *>(bufB.ptr);
+             uint64_t *ptrA = static_cast<uint64_t *>(bufA.ptr);
 
              size_t cur_index = 0;
              for (const auto &it : multMap) {
@@ -835,8 +840,8 @@ void bind_crypto_context(py::module &m) {
                    auto &valuesA =
                        keyElementsA[i].GetElementAtIndex(j).GetValues();
                    for (size_t k = 0; k < valuesB.GetLength(); k++) {
-                     vecMultKeyB[cur_index] = uint64_t(valuesB.at(k));
-                     vecMultKeyA[cur_index] = uint64_t(valuesA.at(k));
+                     ptrB[cur_index] = uint64_t(valuesB.at(k));
+                     ptrA[cur_index] = uint64_t(valuesA.at(k));
                      cur_index++;
                    }
                  }
@@ -846,8 +851,8 @@ void bind_crypto_context(py::module &m) {
            })
       .def("GetEvalRotateKey",
            [](CryptoContext<DCRTPoly> cc) {
-             std::vector<std::tuple<uint64_t, std::vector<uint64_t>,
-                                    std::vector<uint64_t>>>
+             std::vector<std::tuple<uint64_t, py::array_t<uint64_t>,
+                                    py::array_t<uint64_t>>>
                  vecRotateKey;
              auto evalAutomorphismKeyMap = cc->GetAllEvalAutomorphismKeys();
              assert(evalAutomorphismKeyMap.size() == 1);
@@ -862,9 +867,12 @@ void bind_crypto_context(py::module &m) {
                                          .GetElementAtIndex(0)
                                          .GetValues()
                                          .GetLength();
-
-                 std::vector<uint64_t> vecAutomorphismKeyA(total_size);
-                 std::vector<uint64_t> vecAutomorphismKeyB(total_size);
+                 py::array_t<uint64_t> vecAutomorphismKeyB(total_size);
+                 py::array_t<uint64_t> vecAutomorphismKeyA(total_size);
+                 auto bufB = vecAutomorphismKeyB.request();
+                 auto bufA = vecAutomorphismKeyA.request();
+                 uint64_t *ptrB = static_cast<uint64_t *>(bufB.ptr);
+                 uint64_t *ptrA = static_cast<uint64_t *>(bufA.ptr);
                  size_t index = 0;
                  for (size_t i = 0; i < keyElementsB.size(); i++) {
                    for (size_t j = 0; j < keyElementsB[i].GetNumOfElements();
@@ -874,8 +882,8 @@ void bind_crypto_context(py::module &m) {
                      auto &valuesA =
                          keyElementsA[i].GetElementAtIndex(j).GetValues();
                      for (size_t k = 0; k < valuesB.GetLength(); k++) {
-                       vecAutomorphismKeyB[index] = uint64_t(valuesB[k]);
-                       vecAutomorphismKeyA[index] = uint64_t(valuesA[k]);
+                       ptrB[index] = uint64_t(valuesB[k]);
+                       ptrA[index] = uint64_t(valuesA[k]);
                        index++;
                      }
                    }
@@ -893,64 +901,86 @@ void bind_crypto_context(py::module &m) {
             dynamic_cast<FHECKKSRNS *>(scheme_ptr->m_FHE.get()));
 
         std::vector<std::tuple<
-            uint64_t,
-            std::vector<std::vector<std::vector<std::vector<uint64_t>>>>,
-            std::vector<std::vector<std::vector<std::vector<uint64_t>>>>,
-            std::vector<double>, std::vector<double>>>
+            uint64_t, std::vector<uint64_t>, std::vector<uint64_t>,
+            std::vector<double>, py::array_t<uint64_t>, std::vector<uint64_t>,
+            std::vector<uint64_t>, std::vector<double>, py::array_t<uint64_t>>>
             vecBootKey;
 
         for (auto &it : fhe_ptr->m_bootPrecomMap) {
           auto slot = it.first;
           auto precom = it.second;
-          std::vector<double> scfactor_U0hatTPreFFT;
-          std::vector<double> scfactor_U0PreFFT;
-          std::vector<std::vector<std::vector<std::vector<uint64_t>>>> C2S_A;
-          std::vector<std::vector<std::vector<std::vector<uint64_t>>>> S2C_A;
-          for (size_t i = 0; i < precom->m_U0hatTPreFFT.size(); i++) {
-            std::vector<std::vector<std::vector<uint64_t>>> C2S_A_l2;
-            for (size_t j = 0; j < precom->m_U0hatTPreFFT[i].size(); j++) {
-              auto &polys = precom->m_U0hatTPreFFT[i][j]
-                                ->GetElement<DCRTPoly>()
-                                .GetAllElements();
-              scfactor_U0hatTPreFFT.push_back(
-                  precom->m_U0hatTPreFFT[i][j]->GetScalingFactor());
-              std::vector<std::vector<uint64_t>> C2S_A_l1;
-              for (size_t k = 0; k < polys.size(); k++) {
-                std::vector<uint64_t> C2S_A_l0;
-                for (size_t l = 0; l < polys[k].GetValues().GetLength(); l++) {
-                  auto &ele = polys[k][l];
-                  C2S_A_l0.push_back(uint64_t(ele));
-                }
-                C2S_A_l1.push_back(C2S_A_l0);
-              }
-              C2S_A_l2.push_back(C2S_A_l1);
-            }
-            C2S_A.push_back(C2S_A_l2);
-          }
+          std::vector<double> C2S_SF, S2C_SF;
+          std::vector<uint64_t> C2S_DIM, S2C_DIM, C2S_LIMBS, S2C_LIMBS;
 
+          size_t C2S_COUNT = 0, S2C_COUNT = 0;
+          auto &C2S = precom->m_U0hatTPreFFT;
+          for (size_t i = 0; i < C2S.size(); i++) {
+            C2S_DIM.push_back(C2S[i].size());
+            C2S_LIMBS.push_back(
+                C2S[i][0]->GetElement<DCRTPoly>().GetAllElements().size());
+            for (size_t j = 0; j < C2S[i].size(); j++) {
+              C2S_SF.push_back(C2S[i][j]->GetScalingFactor());
+            }
+            C2S_COUNT += C2S_DIM[i] * C2S_LIMBS[i];
+          }
+          C2S_COUNT *= C2S[0][0]
+                           ->GetElement<DCRTPoly>()
+                           .GetAllElements()[0]
+                           .GetValues()
+                           .GetLength();
+
+          auto &S2C = precom->m_U0PreFFT;
+          for (size_t i = 0; i < S2C.size(); i++) {
+            S2C_DIM.push_back(S2C[i].size());
+            S2C_LIMBS.push_back(
+                S2C[i][0]->GetElement<DCRTPoly>().GetAllElements().size());
+            for (size_t j = 0; j < S2C[i].size(); j++) {
+              auto &polys = S2C[i][j]->GetElement<DCRTPoly>().GetAllElements();
+              S2C_SF.push_back(S2C[i][j]->GetScalingFactor());
+            }
+            S2C_COUNT += S2C_DIM[i] * S2C_LIMBS[i];
+          }
+          S2C_COUNT *= S2C[0][0]
+                           ->GetElement<DCRTPoly>()
+                           .GetAllElements()[0]
+                           .GetValues()
+                           .GetLength();
+
+          py::array_t<uint64_t> C2S_A(C2S_COUNT), S2C_A(S2C_COUNT);
+          auto C2S_buf = C2S_A.request(), S2C_buf = S2C_A.request();
+          uint64_t *C2S_ptr = static_cast<uint64_t *>(C2S_buf.ptr);
+          uint64_t *S2C_ptr = static_cast<uint64_t *>(S2C_buf.ptr);
+
+          size_t cur_index = 0;
+          for (size_t i = 0; i < C2S.size(); i++) {
+            for (size_t j = 0; j < C2S[i].size(); j++) {
+              auto &polys = C2S[i][j]->GetElement<DCRTPoly>().GetAllElements();
+              for (size_t k = 0; k < polys.size(); k++) {
+                auto &poly = polys[k].GetValues();
+                for (size_t l = 0; l < poly.GetLength(); l++) {
+                  C2S_ptr[cur_index++] = uint64_t(poly[l]);
+                }
+              }
+            }
+          }
+          cur_index = 0;
           for (size_t i = 0; i < precom->m_U0PreFFT.size(); i++) {
-            std::vector<std::vector<std::vector<uint64_t>>> S2C_A_l2;
             for (size_t j = 0; j < precom->m_U0PreFFT[i].size(); j++) {
               auto &polys = precom->m_U0PreFFT[i][j]
                                 ->GetElement<DCRTPoly>()
                                 .GetAllElements();
-              scfactor_U0PreFFT.push_back(
-                  precom->m_U0PreFFT[i][j]->GetScalingFactor());
-              std::vector<std::vector<uint64_t>> S2C_A_l1;
               for (size_t k = 0; k < polys.size(); k++) {
-                std::vector<uint64_t> S2C_A_l0;
-                for (size_t l = 0; l < polys[k].GetValues().GetLength(); l++) {
-                  auto &ele = polys[k][l];
-                  S2C_A_l0.push_back(uint64_t(ele));
+                auto &poly = polys[k].GetValues();
+                for (size_t l = 0; l < poly.GetLength(); l++) {
+                  S2C_ptr[cur_index++] = uint64_t(poly[l]);
                 }
-                S2C_A_l1.push_back(S2C_A_l0);
               }
-              S2C_A_l2.push_back(S2C_A_l1);
             }
-            S2C_A.push_back(S2C_A_l2);
           }
-          vecBootKey.push_back(std::make_tuple(
-              slot, C2S_A, S2C_A, scfactor_U0hatTPreFFT, scfactor_U0PreFFT));
+
+          vecBootKey.push_back(std::make_tuple(slot, C2S_DIM, C2S_LIMBS, C2S_SF,
+                                               C2S_A, S2C_DIM, S2C_LIMBS,
+                                               S2C_SF, S2C_A));
         }
         return vecBootKey;
       });
