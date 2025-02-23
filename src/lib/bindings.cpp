@@ -894,6 +894,34 @@ void bind_crypto_context(py::module &m) {
              }
              return vecRotateKey;
            })
+      .def("GetEvalBootstrapRotIdx2AutoIdxMap", []
+      (CryptoContext<DCRTPoly> cc, uint32_t logBsSlots) {
+        SchemeBase_TWIN *scheme_ptr =
+                reinterpret_cast<SchemeBase_TWIN *>(cc->GetScheme().get());
+        using FindBootstrapRotationIndicesPtr = std::vector<int32_t> (FHECKKSRNS::*)(uint32_t, uint32_t);
+        FindBootstrapRotationIndicesPtr funcPtr = &FHECKKSRNS::FindBootstrapRotationIndices;
+
+        auto rotIndices = (dynamic_cast<FHECKKSRNS *>(scheme_ptr->m_FHE.get())->*funcPtr)
+                ((1<<logBsSlots),
+                cc->GetCryptoParameters()->GetElementParams()->GetRingDimension()*2);
+
+//        auto autoIndices=cc->FindAutomorphismIndices(rotIndices); // do not accept std::vector<int> as input
+        std::vector<uint32_t> autoIndices(rotIndices.size());
+        for (size_t i = 0; i < rotIndices.size(); i++) {
+            if (rotIndices[i]<0)
+                rotIndices[i] = cc->GetCryptoParameters()->GetElementParams()->GetRingDimension()/2
+                        - std::abs(rotIndices[i]);
+            autoIndices[i] = cc->FindAutomorphismIndex(rotIndices[i]);
+        }
+
+        std::map<int, int> rotIdx2autoIdx_map;
+          for (size_t i = 0; i < autoIndices.size(); ++i) {
+            rotIdx2autoIdx_map[int(rotIndices[i])] = int(autoIndices[i]);
+        }
+
+        return rotIdx2autoIdx_map;
+
+      })
       .def("GetEvalBootstrapContext", [](CryptoContext<DCRTPoly> cc) {
         SchemeBase_TWIN *scheme_ptr =
             reinterpret_cast<SchemeBase_TWIN *>(cc->GetScheme().get());
