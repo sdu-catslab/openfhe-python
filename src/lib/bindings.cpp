@@ -894,7 +894,7 @@ void bind_crypto_context(py::module &m) {
              }
              return vecRotateKey;
            })
-      .def("GetEvalBootstrapKey", [](CryptoContext<DCRTPoly> cc) {
+      .def("GetEvalBootstrapContext", [](CryptoContext<DCRTPoly> cc) {
         SchemeBase_TWIN *scheme_ptr =
             reinterpret_cast<SchemeBase_TWIN *>(cc->GetScheme().get());
         auto fhe_ptr = reinterpret_cast<FHECKKSRNS_TWIN *>(
