@@ -894,7 +894,7 @@ void bind_crypto_context(py::module &m) {
              }
              return vecRotateKey;
            })
-      .def("GetEvalBootstrapRotIdx2AutoIdxMap", []
+      .def("GetEvalBootstrapAutoIdx2RotIdxMap", []
       (CryptoContext<DCRTPoly> cc, uint32_t logBsSlots) {
         SchemeBase_TWIN *scheme_ptr =
                 reinterpret_cast<SchemeBase_TWIN *>(cc->GetScheme().get());
@@ -914,12 +914,12 @@ void bind_crypto_context(py::module &m) {
             autoIndices[i] = cc->FindAutomorphismIndex(rotIndices[i]);
         }
 
-        std::map<int, int> rotIdx2autoIdx_map;
+        std::map<int, int> autoIdx2rotIdx_map;
           for (size_t i = 0; i < autoIndices.size(); ++i) {
-            rotIdx2autoIdx_map[int(rotIndices[i])] = int(autoIndices[i]);
+            autoIdx2rotIdx_map[int(autoIndices[i])] = int(rotIndices[i]) ;
         }
 
-        return rotIdx2autoIdx_map;
+        return autoIdx2rotIdx_map;
 
       })
       .def("GetEvalBootstrapContext", [](CryptoContext<DCRTPoly> cc) {
