@@ -1,4 +1,4 @@
-# Official Python wrapper for OpenFHE
+# Python wrapper for pyFHE
 
 ## Table of Contents
 
