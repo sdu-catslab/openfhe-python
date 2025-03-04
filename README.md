@@ -1,4 +1,4 @@
-# Python wrapper for pyFHE
+# Python wrapper for OpenFHE to generate context for pyFHE
 
 ## Table of Contents
 
@@ -141,3 +141,13 @@ To get familiar with the OpenFHE Python API, check out the examples:
 ## Contributing Guide
 
 [OpenFHE Development - Contributing Guide](https://openfhe-development.readthedocs.io/en/latest/sphinx_rsts/contributing/contributing_workflow.html)
+
+## The Team
+
+openfhe-warpper is a project developed by Catslab at Shandong University. It is adapted from [openfhe-python](https://github.com/openfheorg/openfhe-python), but its objective is not to offer a more user-friendly interface for the OpenFHE library. Instead, its goal is to create a computational context for pyFHE, a GPU-accelerated FHE library.
+
+openfhe-warpper is currently maintained by [Zhuoran Ji](https://github.com/jizhuoran) and [Honghui You](https://github.com/Eyxxxxx). For any questions, please feel free to contact us.
+
+## License
+
+openfhe-warpper is released under the GPL 3.0 license.
