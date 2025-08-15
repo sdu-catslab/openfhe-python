@@ -52,6 +52,7 @@
 #include "plaintext_docs.h"
 #include "ciphertext_docs.h"
 
+#pragma message("Compiling binding.cpp")
 using namespace lbcrypto;
 namespace py = pybind11;
 
@@ -208,6 +209,11 @@ void bind_crypto_context(py::module &m)
         .def("EvalMultKeyGen", &CryptoContextImpl<DCRTPoly>::EvalMultKeyGen, cc_EvalMultKeyGen_docs, py::arg("privateKey"))
         .def("EvalMultKeysGen", &CryptoContextImpl<DCRTPoly>::EvalMultKeysGen, cc_EvalMultKeysGen_docs, py::arg("privateKey"))
         .def("EvalRotateKeyGen", &CryptoContextImpl<DCRTPoly>::EvalRotateKeyGen, cc_EvalRotateKeyGen_docs, py::arg("privateKey"), py::arg("indexList"), py::arg("publicKey") = nullptr)
+        .def("whoami", [](CryptoContext<DCRTPoly> &self)
+             { return "This111 is DCRTPoly"; })
+        .def("GetSeed", [](const CryptoContext<DCRTPoly> &self)
+             { extern std::array<uint32_t, 16> tmp_seed;std::array<uint32_t, 16> seed = tmp_seed;return seed; })
+        .def("GetBufferIndexAndCounter", &CryptoContextImpl<DCRTPoly>::GetBufferIndexAndCounter, cc_GetBufferIndexAndCounterWrapper_docs)
         .def("MakeStringPlaintext", &CryptoContextImpl<DCRTPoly>::MakeStringPlaintext, cc_MakeStringPlaintext_docs, py::arg("str"))
         .def("MakePackedPlaintext", &CryptoContextImpl<DCRTPoly>::MakePackedPlaintext, cc_MakePackedPlaintext_docs, py::arg("value"), py::arg("noiseScaleDeg") = 1, py::arg("level") = 0)
         .def("MakeCoefPackedPlaintext", &CryptoContextImpl<DCRTPoly>::MakeCoefPackedPlaintext, cc_MakeCoefPackedPlaintext_docs, py::arg("value"), py::arg("noiseScaleDeg ") = 1, py::arg("level") = 0)

@@ -30,85 +30,101 @@
 //==================================================================================
 #include "cryptocontext_wrapper.h"
 
-
-Ciphertext<DCRTPoly> EvalFastRotationPrecomputeWrapper(CryptoContext<DCRTPoly> &self,ConstCiphertext<DCRTPoly> ciphertext) {
+Ciphertext<DCRTPoly> EvalFastRotationPrecomputeWrapper(CryptoContext<DCRTPoly> &self, ConstCiphertext<DCRTPoly> ciphertext)
+{
     std::shared_ptr<std::vector<DCRTPoly>> precomp = self->EvalFastRotationPrecompute(ciphertext);
     std::vector<DCRTPoly> elements = *(precomp.get());
     std::shared_ptr<CiphertextImpl<DCRTPoly>> cipherdigits = std::make_shared<CiphertextImpl<DCRTPoly>>(self);
     cipherdigits->SetElements(std::move(elements));
     return cipherdigits;
 }
-Ciphertext<DCRTPoly> EvalFastRotationWrapper(CryptoContext<DCRTPoly>& self,ConstCiphertext<DCRTPoly> ciphertext, uint32_t index, uint32_t m,ConstCiphertext<DCRTPoly> digits) {
-    
-        std::vector<DCRTPoly> digitsElements = digits->GetElements();
-        std::shared_ptr<std::vector<DCRTPoly>> digitsElementsPtr = std::make_shared<std::vector<DCRTPoly>>(digitsElements);
-        return self->EvalFastRotation(ciphertext, index, m, digitsElementsPtr);
-    }
+Ciphertext<DCRTPoly> EvalFastRotationWrapper(CryptoContext<DCRTPoly> &self, ConstCiphertext<DCRTPoly> ciphertext, uint32_t index, uint32_t m, ConstCiphertext<DCRTPoly> digits)
+{
 
-Ciphertext<DCRTPoly> EvalFastRotationExtWrapper(CryptoContext<DCRTPoly>& self,ConstCiphertext<DCRTPoly> ciphertext, uint32_t index, ConstCiphertext<DCRTPoly> digits, bool addFirst) {
+    std::vector<DCRTPoly> digitsElements = digits->GetElements();
+    std::shared_ptr<std::vector<DCRTPoly>> digitsElementsPtr = std::make_shared<std::vector<DCRTPoly>>(digitsElements);
+    return self->EvalFastRotation(ciphertext, index, m, digitsElementsPtr);
+}
+
+Ciphertext<DCRTPoly> EvalFastRotationExtWrapper(CryptoContext<DCRTPoly> &self, ConstCiphertext<DCRTPoly> ciphertext, uint32_t index, ConstCiphertext<DCRTPoly> digits, bool addFirst)
+{
     std::vector<DCRTPoly> digitsElements = digits->GetElements();
     std::shared_ptr<std::vector<DCRTPoly>> digitsElementsPtr = std::make_shared<std::vector<DCRTPoly>>(digitsElements);
     return self->EvalFastRotationExt(ciphertext, index, digitsElementsPtr, addFirst);
 }
 
-
-Plaintext DecryptWrapper(CryptoContext<DCRTPoly>& self,ConstCiphertext<DCRTPoly> ciphertext,const PrivateKey<DCRTPoly> privateKey){
+Plaintext DecryptWrapper(CryptoContext<DCRTPoly> &self, ConstCiphertext<DCRTPoly> ciphertext, const PrivateKey<DCRTPoly> privateKey)
+{
     Plaintext plaintextDecResult;
-    self->Decrypt(privateKey, ciphertext,&plaintextDecResult);
+    self->Decrypt(privateKey, ciphertext, &plaintextDecResult);
     return plaintextDecResult;
 }
-Plaintext DecryptWrapper(CryptoContext<DCRTPoly>& self,const PrivateKey<DCRTPoly> privateKey,ConstCiphertext<DCRTPoly> ciphertext){
+Plaintext DecryptWrapper(CryptoContext<DCRTPoly> &self, const PrivateKey<DCRTPoly> privateKey, ConstCiphertext<DCRTPoly> ciphertext)
+{
     Plaintext plaintextDecResult;
-    self->Decrypt(privateKey, ciphertext,&plaintextDecResult);
-    return plaintextDecResult;
-}
-
-Plaintext MultipartyDecryptFusionWrapper(CryptoContext<DCRTPoly>& self,const std::vector<Ciphertext<DCRTPoly>>& partialCiphertextVec){
-    Plaintext plaintextDecResult;
-    self->MultipartyDecryptFusion(partialCiphertextVec,&plaintextDecResult);
+    self->Decrypt(privateKey, ciphertext, &plaintextDecResult);
     return plaintextDecResult;
 }
 
-const std::shared_ptr<std::map<uint32_t, EvalKey<DCRTPoly>>> GetEvalSumKeyMapWrapper(CryptoContext<DCRTPoly>& self,const std::string &keyTag){
-    return std::make_shared<std::map<uint32_t, EvalKey<DCRTPoly>>>(CryptoContextImpl<DCRTPoly>::GetEvalSumKeyMap(keyTag));;
+Plaintext MultipartyDecryptFusionWrapper(CryptoContext<DCRTPoly> &self, const std::vector<Ciphertext<DCRTPoly>> &partialCiphertextVec)
+{
+    Plaintext plaintextDecResult;
+    self->MultipartyDecryptFusion(partialCiphertextVec, &plaintextDecResult);
+    return plaintextDecResult;
 }
 
-PlaintextModulus GetPlaintextModulusWrapper(CryptoContext<DCRTPoly>& self){
+const std::shared_ptr<std::map<uint32_t, EvalKey<DCRTPoly>>> GetEvalSumKeyMapWrapper(CryptoContext<DCRTPoly> &self, const std::string &keyTag)
+{
+    return std::make_shared<std::map<uint32_t, EvalKey<DCRTPoly>>>(CryptoContextImpl<DCRTPoly>::GetEvalSumKeyMap(keyTag));
+    ;
+}
+
+PlaintextModulus GetPlaintextModulusWrapper(CryptoContext<DCRTPoly> &self)
+{
     return self->GetCryptoParameters()->GetPlaintextModulus();
 }
 
-uint32_t GetBatchSizeWrapper(CryptoContext<DCRTPoly>& self){
+uint32_t GetBatchSizeWrapper(CryptoContext<DCRTPoly> &self)
+{
     return self->GetCryptoParameters()->GetBatchSize();
 }
 
-double GetModulusWrapper(CryptoContext<DCRTPoly>& self){
+double GetModulusWrapper(CryptoContext<DCRTPoly> &self)
+{
     return self->GetCryptoParameters()->GetElementParams()->GetModulus().ConvertToDouble();
 }
 
-void RemoveElementWrapper(Ciphertext<DCRTPoly> &self, uint32_t index){
-    self->GetElements().erase(self->GetElements().begin()+index);
+void RemoveElementWrapper(Ciphertext<DCRTPoly> &self, uint32_t index)
+{
+    self->GetElements().erase(self->GetElements().begin() + index);
 }
-uint32_t GetDigitSizeWrapper(CryptoContext<DCRTPoly>& self){
+uint32_t GetDigitSizeWrapper(CryptoContext<DCRTPoly> &self)
+{
     return self->GetCryptoParameters()->GetDigitSize();
 }
 
-double GetScalingFactorRealWrapper(CryptoContext<DCRTPoly>& self, uint32_t l){
-    if(self->getSchemeId()==SCHEME::CKKSRNS_SCHEME){
+double GetScalingFactorRealWrapper(CryptoContext<DCRTPoly> &self, uint32_t l)
+{
+    if (self->getSchemeId() == SCHEME::CKKSRNS_SCHEME)
+    {
         const auto cryptoParams = std::dynamic_pointer_cast<CryptoParametersCKKSRNS>(self->GetCryptoParameters());
         double scFactor = cryptoParams->GetScalingFactorReal(l);
         return scFactor;
     }
-    else if(self->getSchemeId()==SCHEME::BFVRNS_SCHEME){
+    else if (self->getSchemeId() == SCHEME::BFVRNS_SCHEME)
+    {
         const auto cryptoParams = std::dynamic_pointer_cast<CryptoParametersBFVRNS>(self->GetCryptoParameters());
         double scFactor = cryptoParams->GetScalingFactorReal(l);
         return scFactor;
     }
-    else if(self->getSchemeId()==SCHEME::BGVRNS_SCHEME){
+    else if (self->getSchemeId() == SCHEME::BGVRNS_SCHEME)
+    {
         const auto cryptoParams = std::dynamic_pointer_cast<CryptoParametersBGVRNS>(self->GetCryptoParameters());
         double scFactor = cryptoParams->GetScalingFactorReal(l);
         return scFactor;
     }
-    else{
+    else
+    {
         OPENFHE_THROW("Invalid scheme");
         return 0;
     }
@@ -124,25 +140,30 @@ uint64_t GetModulusCKKSWrapper(CryptoContext<DCRTPoly> &self)
     return modulus_CKKS_from;
 }
 
-ScalingTechnique GetScalingTechniqueWrapper(CryptoContext<DCRTPoly> & self){
-    if(self->getSchemeId()==SCHEME::CKKSRNS_SCHEME){
+ScalingTechnique GetScalingTechniqueWrapper(CryptoContext<DCRTPoly> &self)
+{
+    if (self->getSchemeId() == SCHEME::CKKSRNS_SCHEME)
+    {
         const auto cryptoParams = std::dynamic_pointer_cast<CryptoParametersCKKSRNS>(self->GetCryptoParameters());
         return cryptoParams->GetScalingTechnique();
     }
-    else if(self->getSchemeId()==SCHEME::BFVRNS_SCHEME){
+    else if (self->getSchemeId() == SCHEME::BFVRNS_SCHEME)
+    {
         const auto cryptoParams = std::dynamic_pointer_cast<CryptoParametersBFVRNS>(self->GetCryptoParameters());
         return cryptoParams->GetScalingTechnique();
     }
-    else if(self->getSchemeId()==SCHEME::BGVRNS_SCHEME){
+    else if (self->getSchemeId() == SCHEME::BGVRNS_SCHEME)
+    {
         const auto cryptoParams = std::dynamic_pointer_cast<CryptoParametersBGVRNS>(self->GetCryptoParameters());
         return cryptoParams->GetScalingTechnique();
     }
-    else{
+    else
+    {
         OPENFHE_THROW("Invalid scheme");
     }
-
 }
 
-void ClearEvalMultKeysWrapper() {
+void ClearEvalMultKeysWrapper()
+{
     CryptoContextImpl<DCRTPoly>::ClearEvalMultKeys();
 }
