@@ -353,6 +353,30 @@ void bind_crypto_context(py::module &m)
         .def("FindAutomorphismIndices", &CryptoContextImpl<DCRTPoly>::FindAutomorphismIndices, cc_FindAutomorphismIndices_docs, py::arg("idxList"))
         .def("GetEvalSumKeyMap", &GetEvalSumKeyMapWrapper, cc_GetEvalSumKeyMap_docs)
         .def("GetBinCCForSchemeSwitch", &CryptoContextImpl<DCRTPoly>::GetBinCCForSchemeSwitch)
+        .def("GetPQ", [](CryptoContext<DCRTPoly> cc)
+             {
+              auto cryptoParams =
+                  std::dynamic_pointer_cast<CryptoParametersCKKSRNS>(
+                      cc->GetCryptoParameters());
+              auto paramsQP = cryptoParams->GetParamsQP()->GetParams();
+              auto paramsQ = cryptoParams->GetElementParams();
+              auto sizeQ = paramsQ->GetParams().size();
+              auto sizeQP = paramsQP.size();
+              auto sizeP = sizeQP - sizeQ;
+ 
+              std::vector<uint64_t> moduliQ;
+              std::vector<uint64_t> rootsQ;
+              std::vector<uint64_t> moduliP;
+              std::vector<uint64_t> rootsP;
+              for (size_t i = 0; i < sizeQ; i++) {
+                moduliQ.push_back(uint64_t(paramsQP[i]->GetModulus()));
+                rootsQ.push_back(uint64_t(paramsQP[i]->GetRootOfUnity()));
+              }
+              for (size_t i = sizeQ; i < sizeQP; i++) {
+                moduliP.push_back(uint64_t(paramsQP[i]->GetModulus()));
+                rootsP.push_back(uint64_t(paramsQP[i]->GetRootOfUnity()));
+              }
+              return std::make_tuple(moduliQ, rootsQ, moduliP, rootsP); })
         .def_static("InsertEvalSumKey", &CryptoContextImpl<DCRTPoly>::InsertEvalSumKey, cc_InsertEvalSumKey_docs, py::arg("evalKeyMap"), py::arg("keyTag") = "")
         .def_static("InsertEvalMultKey", &CryptoContextImpl<DCRTPoly>::InsertEvalMultKey, cc_InsertEvalMultKey_docs, py::arg("evalKeyVec"), py::arg("keyTag") = "")
         .def_static("InsertEvalAutomorphismKey", &CryptoContextImpl<DCRTPoly>::InsertEvalAutomorphismKey, cc_InsertEvalAutomorphismKey_docs, py::arg("evalKeyMap"), py::arg("keyTag") = "")
