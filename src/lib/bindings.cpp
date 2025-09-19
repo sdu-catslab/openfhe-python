@@ -1211,6 +1211,26 @@ void bind_keys(py::module &m) {
   py::class_<PublicKeyImpl<DCRTPoly>, std::shared_ptr<PublicKeyImpl<DCRTPoly>>>(
       m, "PublicKey")
       .def(py::init<>())
+      .def("GetKeyValue", [](const PublicKeyImpl<DCRTPoly>& pk) {
+                 std::vector<std::vector<uint64_t>> res;
+               auto elems = pk.GetPublicElements(); 
+               res.reserve(elems.size());
+               for (const auto& dcrt : elems) {
+                    std::vector<uint64_t> vec;
+                    size_t numTowers = dcrt.GetNumOfElements();
+                    for (size_t t = 0; t < numTowers; ++t) {
+                         const auto& tower = dcrt.GetElementAtIndex(t); 
+                         auto len = tower.GetValues().GetLength();
+                         vec.reserve(vec.size() + len);
+                         for (size_t k = 0; k < len; ++k) {
+                              vec.push_back(tower.at(k).ConvertToInt()); 
+                         }
+                    }
+
+                    res.emplace_back(std::move(vec));
+               }
+               return res;
+             })
       .def("GetKeyTag", &PublicKeyImpl<DCRTPoly>::GetKeyTag)
       .def("SetKeyTag", &PublicKeyImpl<DCRTPoly>::SetKeyTag);
   py::class_<PrivateKeyImpl<DCRTPoly>,
