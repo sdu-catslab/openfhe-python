@@ -36,6 +36,7 @@
 #include <pybind11/functional.h>
 #include <pybind11/operators.h>
 #include <pybind11/iostream.h>
+#include <pybind11/numpy.h>
 
 #include "openfhe.h"
 
@@ -178,6 +179,9 @@ void bind_crypto_context(py::module &m)
         .def("GetScalingFactorReal", &GetScalingFactorRealWrapper, cc_GetScalingFactorReal_docs)
         .def("GetScalingTechnique", &GetScalingTechniqueWrapper)
         .def("GetDigitSize", &GetDigitSizeWrapper)
+        // expose NumLargeDigits for CryptoContext
+        .def("GetNumLargeDigits", [](CryptoContext<DCRTPoly> &self)
+             { return GetParamsRNSChecked(self, "GetNumLargeDigits")->GetNumLargeDigits(); })
         .def("GetCyclotomicOrder", &CryptoContextImpl<DCRTPoly>::GetCyclotomicOrder, cc_GetCyclotomicOrder_docs)
         .def("GetCKKSDataType", &CryptoContextImpl<DCRTPoly>::GetCKKSDataType)
         .def("GetNoiseEstimate", [](CryptoContext<DCRTPoly> &self)
@@ -209,11 +213,98 @@ void bind_crypto_context(py::module &m)
         .def("EvalMultKeyGen", &CryptoContextImpl<DCRTPoly>::EvalMultKeyGen, cc_EvalMultKeyGen_docs, py::arg("privateKey"))
         .def("EvalMultKeysGen", &CryptoContextImpl<DCRTPoly>::EvalMultKeysGen, cc_EvalMultKeysGen_docs, py::arg("privateKey"))
         .def("EvalRotateKeyGen", &CryptoContextImpl<DCRTPoly>::EvalRotateKeyGen, cc_EvalRotateKeyGen_docs, py::arg("privateKey"), py::arg("indexList"), py::arg("publicKey") = nullptr)
+
+        // catlab
         .def("whoami", [](CryptoContext<DCRTPoly> &self)
              { return "This111 is DCRTPoly"; })
         .def("GetSeed", [](const CryptoContext<DCRTPoly> &self)
              { extern std::array<uint32_t, 16> tmp_seed;std::array<uint32_t, 16> seed = tmp_seed;return seed; })
         .def("GetBufferIndexAndCounter", &CryptoContextImpl<DCRTPoly>::GetBufferIndexAndCounter, cc_GetBufferIndexAndCounterWrapper_docs)
+        .def("GetEvalMultKey", [](CryptoContext<DCRTPoly> cc)
+             {
+              auto &multMap = cc->GetAllEvalMultKeys();
+              assert(multMap.size() == 1);
+ 
+              auto &keyElementsB = multMap.begin()->second[0]->GetBVector();
+              auto &keyElementsA = multMap.begin()->second[0]->GetAVector();
+ 
+              size_t totalBSize =
+                  keyElementsB.size() * keyElementsB[0].GetNumOfElements() *
+                  keyElementsB[0].GetElementAtIndex(0).GetValues().GetLength();
+              size_t totalASize =
+                  keyElementsA.size() * keyElementsA[0].GetNumOfElements() *
+                  keyElementsA[0].GetElementAtIndex(0).GetValues().GetLength();
+ 
+              py::array_t<uint64_t> vecMultKeyB(totalBSize);
+              py::array_t<uint64_t> vecMultKeyA(totalASize);
+              auto bufB = vecMultKeyB.request();
+              auto bufA = vecMultKeyA.request();
+              uint64_t *ptrB = static_cast<uint64_t *>(bufB.ptr);
+              uint64_t *ptrA = static_cast<uint64_t *>(bufA.ptr);
+ 
+              size_t cur_index = 0;
+              for (const auto &it : multMap) {
+                for (size_t i = 0; i < keyElementsB.size(); i++) {
+                  for (size_t j = 0; j < keyElementsB[i].GetNumOfElements();
+                       j++) {
+                    auto &valuesB =
+                        keyElementsB[i].GetElementAtIndex(j).GetValues();
+                    auto &valuesA =
+                        keyElementsA[i].GetElementAtIndex(j).GetValues();
+                    for (size_t k = 0; k < valuesB.GetLength(); k++) {
+                      ptrB[cur_index] = uint64_t(valuesB.at(k));
+                      ptrA[cur_index] = uint64_t(valuesA.at(k));
+                      cur_index++;
+                    }
+                  }
+                }
+              }
+              return std::make_tuple(vecMultKeyB, vecMultKeyA); })
+        .def("GetEvalRotateKey", [](CryptoContext<DCRTPoly> cc)
+             {
+              std::vector<std::tuple<uint64_t, py::array_t<uint64_t>,
+                                     py::array_t<uint64_t>>>
+                  vecRotateKey;
+              auto evalAutomorphismKeyMap = cc->GetAllEvalAutomorphismKeys();
+              assert(evalAutomorphismKeyMap.size() == 1);
+              for (const auto &AutomorphismKey : evalAutomorphismKeyMap) {
+                for (const auto &it : (*AutomorphismKey.second)) {
+                  auto keyIndex = it.first;
+                  auto &keyElementsB = it.second->GetBVector();
+                  auto &keyElementsA = it.second->GetAVector();
+                  size_t total_size = keyElementsB.size() *
+                                      keyElementsB[0].GetNumOfElements() *
+                                      keyElementsB[0]
+                                          .GetElementAtIndex(0)
+                                          .GetValues()
+                                          .GetLength();
+                  py::array_t<uint64_t> vecAutomorphismKeyB(total_size);
+                  py::array_t<uint64_t> vecAutomorphismKeyA(total_size);
+                  auto bufB = vecAutomorphismKeyB.request();
+                  auto bufA = vecAutomorphismKeyA.request();
+                  uint64_t *ptrB = static_cast<uint64_t *>(bufB.ptr);
+                  uint64_t *ptrA = static_cast<uint64_t *>(bufA.ptr);
+                  size_t index = 0;
+                  for (size_t i = 0; i < keyElementsB.size(); i++) {
+                    for (size_t j = 0; j < keyElementsB[i].GetNumOfElements();
+                         j++) {
+                      auto &valuesB =
+                          keyElementsB[i].GetElementAtIndex(j).GetValues();
+                      auto &valuesA =
+                          keyElementsA[i].GetElementAtIndex(j).GetValues();
+                      for (size_t k = 0; k < valuesB.GetLength(); k++) {
+                        ptrB[index] = uint64_t(valuesB[k]);
+                        ptrA[index] = uint64_t(valuesA[k]);
+                        index++;
+                      }
+                    }
+                  }
+                  vecRotateKey.push_back(std::make_tuple(
+                      keyIndex, vecAutomorphismKeyB, vecAutomorphismKeyA));
+                }
+              }
+              return vecRotateKey; })
+
         .def("MakeStringPlaintext", &CryptoContextImpl<DCRTPoly>::MakeStringPlaintext, cc_MakeStringPlaintext_docs, py::arg("str"))
         .def("MakePackedPlaintext", &CryptoContextImpl<DCRTPoly>::MakePackedPlaintext, cc_MakePackedPlaintext_docs, py::arg("value"), py::arg("noiseScaleDeg") = 1, py::arg("level") = 0)
         .def("MakeCoefPackedPlaintext", &CryptoContextImpl<DCRTPoly>::MakeCoefPackedPlaintext, cc_MakeCoefPackedPlaintext_docs, py::arg("value"), py::arg("noiseScaleDeg ") = 1, py::arg("level") = 0)
