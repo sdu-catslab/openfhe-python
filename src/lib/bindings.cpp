@@ -693,10 +693,12 @@ void bind_crypto_context(py::module &m)
               {
                  SchemeBase_TWIN *scheme_ptr =
                      reinterpret_cast<SchemeBase_TWIN *>(cc->GetScheme().get());
-                 using FindBootstrapRotationIndicesPtr = std::vector<int32_t> (FHECKKSRNS::*)(uint32_t, uint32_t);
-                 FindBootstrapRotationIndicesPtr funcPtr = &FHECKKSRNS::FindBootstrapRotationIndices;
+                 using FindBootstrapRotationIndicesPtr = std::vector<int32_t> (FHECKKSRNS_TWIN::*)(uint32_t, uint32_t);
+                 auto fhe_ptr = reinterpret_cast<FHECKKSRNS_TWIN *>(
+            dynamic_cast<FHECKKSRNS *>(scheme_ptr->m_FHE.get()));
+                 FindBootstrapRotationIndicesPtr funcPtr = &FHECKKSRNS_TWIN::FindBootstrapRotationIndices;
 
-                 auto rotIndices = (dynamic_cast<FHECKKSRNS *>(scheme_ptr->m_FHE.get())->*funcPtr)((1 << logBsSlots),
+                 auto rotIndices = (dynamic_cast<FHECKKSRNS_TWIN *>(scheme_ptr->m_FHE.get())->*funcPtr)((1 << logBsSlots),
                                                                                                    cc->GetCryptoParameters()->GetElementParams()->GetRingDimension() * 2);
 
                  //        auto autoIndices=cc->FindAutomorphismIndices(rotIndices); // do not accept std::vector<int> as input

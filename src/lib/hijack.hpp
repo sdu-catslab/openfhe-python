@@ -33,6 +33,8 @@ public:
     // key tuple is dim1, levelBudgetEnc, levelBudgetDec
     std::map<uint32_t, std::shared_ptr<lbcrypto::CKKSBootstrapPrecom>> m_bootPrecomMap;
 
+    std::vector<int32_t> FindBootstrapRotationIndices(uint32_t slots, uint32_t M);
+
     // Chebyshev series coefficients for the SPARSE case
     static const inline std::vector<double> g_coefficientsSparse{
         -0.18646470117093214, 0.036680543700430925, -0.20323558926782626, 0.029327390306199311,
