@@ -1,5 +1,10 @@
 #pragma once
 
+#define private public
+#include "pke/scheme/ckksrns/ckksrns-fhe.h"
+#undef private
+#include "utils/prng/blake2engine.h"
+
 using namespace lbcrypto;
 class SchemeBase_TWIN
 {
@@ -76,3 +81,32 @@ public:
         1.0057423059167244e-12, 8.1701187638005194e-15, -1.0611736208855373e-13, -8.9597492970451533e-16,
         1.1421575296031385e-14};
 };
+
+class Blake2Engine_TWIN
+{
+public:
+    virtual ~Blake2Engine_TWIN() {}
+
+    enum
+    {
+        MAX_SEED_GENS = 16,
+        PRNG_BUFFER_SIZE = 1024
+    };
+
+    using blake2_seed_array_t = std::array<PRNG::result_type, MAX_SEED_GENS>;
+
+    std::array<PRNG::result_type, PRNG_BUFFER_SIZE> m_buffer;
+    size_t m_bufferIndex;
+    blake2_seed_array_t m_seed;
+    uint64_t m_counter;
+};
+
+Blake2Engine_TWIN *HijackBlake2Engine(default_prng::Blake2Engine *engine)
+{
+    return reinterpret_cast<Blake2Engine_TWIN *>(engine);
+}
+
+std::vector<int32_t> FHECKKSRNS_TWIN::FindBootstrapRotationIndices(uint32_t slots, uint32_t M)
+{
+    return reinterpret_cast<FHECKKSRNS *>(this)->FindBootstrapRotationIndices(slots, M);
+}

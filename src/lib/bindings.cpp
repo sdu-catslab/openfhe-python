@@ -30,9 +30,8 @@
 //==================================================================================
 #include "bindings.h"
 
-#include "openfhe.h"
-
 #include "hijack.hpp"
+#include "openfhe.h"
 #include "key/key-ser.h"
 #include "binfhe_bindings.h"
 
@@ -41,6 +40,7 @@
 #include <map>
 #include <tuple>
 #include <string>
+#include <stdexcept>
 #include <utility>
 #include <vector>
 
@@ -838,6 +838,18 @@ int get_native_int()
 #endif
 }
 
+std::tuple<uint64_t, uint64_t> GetPRNGInternalState()
+{
+     auto &prng = lbcrypto::PseudoRandomNumberGenerator::GetPRNG();
+     auto engine = dynamic_cast<default_prng::Blake2Engine *>(&prng);
+     if (!engine)
+     {
+          throw std::runtime_error("Active PRNG instance is not Blake2Engine");
+     }
+
+     auto twin = HijackBlake2Engine(engine);
+     return std::make_tuple(twin->m_counter, twin->m_bufferIndex);
+}
 void bind_enums_and_constants(py::module &m)
 {
      /* ---- PKE enums ---- */
@@ -999,6 +1011,7 @@ void bind_enums_and_constants(py::module &m)
 
      // NATIVEINT function
      m.def("get_native_int", &get_native_int);
+     m.def("getPRNGInternalState", &GetPRNGInternalState);
 }
 
 void bind_keys(py::module &m)
@@ -1361,6 +1374,17 @@ void bind_utils(py::module &m)
            py::doc("Enable CRT precomputation after deserialization"));
      m.def("DisablePrecomputeCRTTablesAfterDeserializaton", &lbcrypto::DisablePrecomputeCRTTablesAfterDeserializaton,
            py::doc("Disable CRT precomputation after deserialization"));
+     // m.def("GetPRNGInternalState", []()
+     //       {
+     //            auto &prng = lbcrypto::PseudoRandomNumberGenerator::GetPRNG();
+     //            auto engine = dynamic_cast<default_prng::Blake2Engine *>(&prng);
+     //            if (!engine)
+     //            {
+     //                 throw std::runtime_error("Active PRNG instance is not Blake2Engine");
+     //            }
+
+     //            auto twin = HijackBlake2Engine(engine);
+     //            return py::make_tuple(twin->m_counter, twin->m_bufferIndex); }, py::doc("Expose the Blake2Engine counter and buffer index for debugging"));
 }
 
 PYBIND11_MODULE(openfhe, m)
