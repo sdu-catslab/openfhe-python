@@ -1,3 +1,10 @@
+# PRNG
+hijack the PRNG seed & bufferindex & counter 
+```
+openfhe.getPRNGInternalState()
+openfhe.getPRNGSeed()
+```
+
 # OpenFHE-Python
 
 [![License](https://img.shields.io/badge/License-BSD%202--Clause-blue.svg)](https://opensource.org/licenses/BSD-2-Clause)
