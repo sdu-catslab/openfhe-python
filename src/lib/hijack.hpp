@@ -28,6 +28,7 @@ class FHECKKSRNS_TWIN : public FHERNS
     // for hijack&TWIN technique we must keep the same member VAR as FHECKKSRNS to keep correctness
 public:
     virtual ~FHECKKSRNS_TWIN() {}
+    std::vector<int32_t> FindBootstrapRotationIndices(uint32_t slots, uint32_t M);
     uint32_t m_correctionFactor;
 
     // key tuple is dim1, levelBudgetEnc, levelBudgetDec
