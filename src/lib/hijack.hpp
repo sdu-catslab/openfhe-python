@@ -23,6 +23,7 @@ public:
 
 class FHECKKSRNS_TWIN : public FHERNS
 {
+    // DONE todo
     // TODO: there are new member VAR in class(FHECKKSRNS) in new version(openfhe development)
     // for hijack&TWIN technique we must keep the same member VAR as FHECKKSRNS to keep correctness
 public:
