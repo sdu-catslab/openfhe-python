@@ -838,7 +838,7 @@ int get_native_int()
 #endif
 }
 
-std::tuple<uint64_t, size_t> GetPRNGInternalState()
+std::pair<uint32_t, uint64_t> GetPRNGInternalState()
 {
      auto &prng = lbcrypto::PseudoRandomNumberGenerator::GetPRNG();
      auto engine = dynamic_cast<default_prng::Blake2Engine *>(&prng);
@@ -847,9 +847,25 @@ std::tuple<uint64_t, size_t> GetPRNGInternalState()
           throw std::runtime_error("Active PRNG instance is not Blake2Engine");
      }
 
-     auto twin = HijackBlake2Engine(engine);
-     return std::make_tuple(twin->m_counter, twin->m_bufferIndex);
+     Blake2Engine_TWIN *twin = reinterpret_cast<Blake2Engine_TWIN *>(&prng);
+     uint64_t counter = twin->m_counter;
+     uint32_t bufferIndex = twin->m_bufferIndex;
+     return std::make_pair(bufferIndex, counter);
 }
+
+size_t GetPRNGBufIndex()
+{
+     auto &prng = lbcrypto::PseudoRandomNumberGenerator::GetPRNG();
+     auto engine = dynamic_cast<default_prng::Blake2Engine *>(&prng);
+     if (!engine)
+     {
+          throw std::runtime_error("Active PRNG instance is not Blake2Engine");
+     }
+
+     auto twin = reinterpret_cast<Blake2Engine_TWIN *>(&prng);
+     return twin->m_bufferIndex;
+}
+
 std::array<uint32_t, 16> GetPRNGSeed()
 {
      auto &prng = lbcrypto::PseudoRandomNumberGenerator::GetPRNG();
@@ -859,7 +875,7 @@ std::array<uint32_t, 16> GetPRNGSeed()
           throw std::runtime_error("Active PRNG instance is not Blake2Engine");
      }
 
-     auto twin = HijackBlake2Engine(engine);
+     auto twin = reinterpret_cast<Blake2Engine_TWIN *>(engine);
      return twin->m_seed;
 }
 void bind_enums_and_constants(py::module &m)
@@ -1025,6 +1041,7 @@ void bind_enums_and_constants(py::module &m)
      m.def("get_native_int", &get_native_int);
      m.def("getPRNGInternalState", &GetPRNGInternalState);
      m.def("getPRNGSeed", &GetPRNGSeed);
+     m.def("getPRNGBufIndex", &GetPRNGBufIndex);
 }
 
 void bind_keys(py::module &m)

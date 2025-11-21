@@ -23,7 +23,8 @@ public:
 
 class FHECKKSRNS_TWIN : public FHERNS
 {
-
+    // TODO: there are new member VAR in class(FHECKKSRNS) in new version(openfhe development)
+    // for hijack&TWIN technique we must keep the same member VAR as FHECKKSRNS to keep correctness
 public:
     virtual ~FHECKKSRNS_TWIN() {}
 
@@ -94,17 +95,13 @@ public:
     };
 
     using blake2_seed_array_t = std::array<PRNG::result_type, MAX_SEED_GENS>;
+    std::array<PRNG::result_type, PRNG_BUFFER_SIZE> m_buffer{};
 
-    std::array<PRNG::result_type, PRNG_BUFFER_SIZE> m_buffer;
-    size_t m_bufferIndex;
-    blake2_seed_array_t m_seed;
-    uint64_t m_counter;
+    // std::array<PRNG::result_type, PRNG_BUFFER_SIZE> m_buffer;
+    size_t m_bufferIndex = 0;
+    blake2_seed_array_t m_seed{};
+    uint64_t m_counter = 0;
 };
-
-Blake2Engine_TWIN *HijackBlake2Engine(default_prng::Blake2Engine *engine)
-{
-    return reinterpret_cast<Blake2Engine_TWIN *>(engine);
-}
 
 std::vector<int32_t> FHECKKSRNS_TWIN::FindBootstrapRotationIndices(uint32_t slots, uint32_t M)
 {
