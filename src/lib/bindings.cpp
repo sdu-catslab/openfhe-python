@@ -455,6 +455,22 @@ void bind_crypto_context(py::module &m)
          .def("EvalFHEWtoCKKSSetup", &CryptoContextImpl<DCRTPoly>::EvalFHEWtoCKKSSetup, py::arg("ccLWE"), py::arg("numSlotsCKKS") = 0, py::arg("logQ") = 25, py::doc(cc_EvalFHEWtoCKKSSetup_docs))
          .def("EvalFHEWtoCKKSKeyGen", &CryptoContextImpl<DCRTPoly>::EvalFHEWtoCKKSKeyGen, py::arg("keyPair"), py::arg("lwesk"), py::arg("numSlots") = 0, py::arg("numCtxts") = 0, py::arg("dim1") = 0, py::arg("L") = 0, py::doc(cc_EvalFHEWtoCKKSKeyGen_docs))
          .def("EvalFHEWtoCKKS", &CryptoContextImpl<DCRTPoly>::EvalFHEWtoCKKS, py::arg("LWECiphertexts"), py::arg("numCtxts") = 0, py::arg("numSlots") = 0, py::arg("p") = 4, py::arg("pmin") = 0.0, py::arg("pmax") = 2.0, py::arg("dim1") = 0, py::doc(cc_EvalFHEWtoCKKS_docs))
+         // Helper: expose CKKS ReduceRotation(index, slotsHalf) logic, using decoding params from m_bootPrecomMap
+         .def("ReduceRotation", [](CryptoContext<DCRTPoly> cc, int32_t index, uint32_t slots)
+              {
+                    // Mirror ckksrns-utils.cpp::ReduceRotation
+                    const auto islots = static_cast<int32_t>(slots);
+                    auto isPowerOfTwo = [](uint32_t x) {
+                         return x && !(x & (x - 1));
+                    };
+
+                    if (isPowerOfTwo(slots)) {
+                         const auto n = static_cast<uint32_t>(std::log2(slots));
+                         if (index >= 0)
+                              return static_cast<uint32_t>(index - ((index >> n) << n));
+                         return static_cast<uint32_t>(index + islots + ((std::abs(index) >> n) << n));
+                    }
+                    return static_cast<uint32_t>((islots + index % islots) % islots); }, py::arg("index"), py::arg("slots"))
          .def("EvalSchemeSwitchingSetup", &CryptoContextImpl<DCRTPoly>::EvalSchemeSwitchingSetup, py::arg("schswchparams"), py::doc(cc_EvalSchemeSwitchingSetup_docs))
          // void EvalSchemeSwitchingKeyGen(const KeyPair<DCRTPoly> &keyPair, ConstLWEPrivateKey &lwesk, uint32_t numValues = 0, bool oneHot = true, bool alt = false, uint32_t dim1CF = 0, uint32_t dim1FC = 0, uint32_t LCF = 1, uint32_t LFC = 0)
          .def("EvalSchemeSwitchingKeyGen", &CryptoContextImpl<DCRTPoly>::EvalSchemeSwitchingKeyGen, py::arg("keyPair"), py::arg("lwesk"), py::doc(cc_EvalSchemeSwitchingKeyGen_docs))
@@ -689,34 +705,283 @@ void bind_crypto_context(py::module &m)
                 }
 
                 return result; })
-         .def("GetEvalBootstrapAutoIdx2RotIdxMap", [](CryptoContext<DCRTPoly> cc, uint32_t logBsSlots)
+         //     .def("GetEvalBootstrapAutoIdx2RotIdxMap", [](CryptoContext<DCRTPoly> cc, uint32_t logBsSlots)
+         //          {
+         //                 // 使用刚刚绑定的 FindBootstrapRotationIndices 获取 rotIndices
+         //                 uint32_t slots = (1u << logBsSlots);
+         //                 uint32_t M     = cc->GetCryptoParameters()->GetElementParams()->GetRingDimension() * 2;
+
+         //                 SchemeBase_TWIN *scheme_ptr =
+         //                      reinterpret_cast<SchemeBase_TWIN *>(cc->GetScheme().get());
+         //                 auto fhe_ptr = reinterpret_cast<FHECKKSRNS_TWIN *>(
+         //                      dynamic_cast<FHECKKSRNS *>(scheme_ptr->m_FHE.get()));
+
+         //                 using FindBootstrapRotationIndicesPtr =
+         //                      std::vector<int32_t> (FHECKKSRNS_TWIN::*)(uint32_t, uint32_t);
+         //                 FindBootstrapRotationIndicesPtr funcPtr = &FHECKKSRNS_TWIN::FindBootstrapRotationIndices;
+
+         //                 auto rotIndices = (fhe_ptr->*funcPtr)(slots, M);
+
+         //                 // autoIndices 对应 automorphism index
+         //                 std::vector<uint32_t> autoIndices(rotIndices.size());
+         //                 uint32_t Nover2 = cc->GetCryptoParameters()->GetElementParams()->GetRingDimension() / 2;
+         //                 for (size_t i = 0; i < rotIndices.size(); i++) {
+         //                      if (rotIndices[i] < 0)
+         //                           rotIndices[i] = static_cast<int32_t>(Nover2) - std::abs(rotIndices[i]);
+         //                      autoIndices[i] = cc->FindAutomorphismIndex(static_cast<uint32_t>(rotIndices[i]));
+         //                 }
+
+         //                 std::map<int, int> autoIdx2rotIdx_map;
+         //                 for (size_t i = 0; i < autoIndices.size(); ++i) {
+         //                      autoIdx2rotIdx_map[static_cast<int>(autoIndices[i])] = static_cast<int>(rotIndices[i]);
+         //                 }
+
+         //                 return autoIdx2rotIdx_map; })
+         // Expose decoding-side rotation index generation: FHECKKSRNS::FindSlotsToCoeffsRotationIndices
+         .def("FindSlotsToCoeffsRotationIndices", [](CryptoContext<DCRTPoly> cc, uint32_t slots, uint32_t M)
               {
-                 SchemeBase_TWIN *scheme_ptr =
-                     reinterpret_cast<SchemeBase_TWIN *>(cc->GetScheme().get());
-                 using FindBootstrapRotationIndicesPtr = std::vector<int32_t> (FHECKKSRNS_TWIN::*)(uint32_t, uint32_t);
-                 auto fhe_ptr = reinterpret_cast<FHECKKSRNS_TWIN *>(
-            dynamic_cast<FHECKKSRNS *>(scheme_ptr->m_FHE.get()));
-                 FindBootstrapRotationIndicesPtr funcPtr = &FHECKKSRNS_TWIN::FindBootstrapRotationIndices;
+                     SchemeBase_TWIN* scheme_ptr =
+                          reinterpret_cast<SchemeBase_TWIN*>(cc->GetScheme().get());
+                     auto fhe_ptr = reinterpret_cast<FHECKKSRNS_TWIN*>(
+                          dynamic_cast<FHECKKSRNS*>(scheme_ptr->m_FHE.get()));
 
-                 auto rotIndices = (dynamic_cast<FHECKKSRNS_TWIN *>(scheme_ptr->m_FHE.get())->*funcPtr)((1 << logBsSlots),
-                                                                                                   cc->GetCryptoParameters()->GetElementParams()->GetRingDimension() * 2);
+                     // Mirror FHECKKSRNS::FindSlotsToCoeffsRotationIndices logic using
+                     // the precomputed decoding parameters in m_bootPrecomMap (m_paramsDec).
+                     auto it = fhe_ptr->m_bootPrecomMap.find(slots);
+                     if (it == fhe_ptr->m_bootPrecomMap.end() || !it->second) {
+                          OPENFHE_THROW("FindSlotsToCoeffsRotationIndices: no bootstrap precomputation for given slots");
+                     }
 
-                 //        auto autoIndices=cc->FindAutomorphismIndices(rotIndices); // do not accept std::vector<int> as input
-                 std::vector<uint32_t> autoIndices(rotIndices.size());
-                 for (size_t i = 0; i < rotIndices.size(); i++)
-                 {
-                     if (rotIndices[i] < 0)
-                         rotIndices[i] = cc->GetCryptoParameters()->GetElementParams()->GetRingDimension() / 2 - std::abs(rotIndices[i]);
-                     autoIndices[i] = cc->FindAutomorphismIndex(rotIndices[i]);
+                     const CKKSBootstrapPrecom& p = *it->second;
+
+                     uint32_t levelBudget     = p.m_paramsDec[CKKS_BOOT_PARAMS::LEVEL_BUDGET];
+                     uint32_t layersCollapse  = p.m_paramsDec[CKKS_BOOT_PARAMS::LAYERS_COLL];
+                     uint32_t remCollapse     = p.m_paramsDec[CKKS_BOOT_PARAMS::LAYERS_REM];
+                     uint32_t numRotations    = p.m_paramsDec[CKKS_BOOT_PARAMS::NUM_ROTATIONS];
+                     uint32_t b               = p.m_paramsDec[CKKS_BOOT_PARAMS::BABY_STEP];
+                     uint32_t g               = p.m_paramsDec[CKKS_BOOT_PARAMS::GIANT_STEP];
+                     uint32_t numRotationsRem = p.m_paramsDec[CKKS_BOOT_PARAMS::NUM_ROTATIONS_REM];
+                     uint32_t bRem            = p.m_paramsDec[CKKS_BOOT_PARAMS::BABY_STEP_REM];
+                     uint32_t gRem            = p.m_paramsDec[CKKS_BOOT_PARAMS::GIANT_STEP_REM];
+
+                     uint32_t flagRem = (remCollapse == 0) ? 0u : 1u;
+                     if (levelBudget < flagRem)
+                          OPENFHE_THROW("FindSlotsToCoeffsRotationIndices: levelBudget can not be less than flagRem");
+
+                     std::vector<uint32_t> indexList;
+                     // To avoid overflowing uint32_t variables, we do some math operations below in a specific order
+                     // Computing all indices for baby-step giant-step procedure for encoding and decoding
+                     int32_t indexListSz = static_cast<int32_t>(b) + g - 2 + bRem + gRem - 2 + 1 + static_cast<int32_t>(M);
+                     if (indexListSz < 0)
+                          OPENFHE_THROW("FindSlotsToCoeffsRotationIndices: indexListSz can not be negative");
+                     indexList.reserve(static_cast<size_t>(indexListSz));
+
+                     auto reduceRotation = [](int32_t index, uint32_t slotsHalf) -> uint32_t {
+                          const auto islots = static_cast<int32_t>(slotsHalf);
+                          auto isPowerOfTwo = [](uint32_t x) {
+                               return x && !(x & (x - 1));
+                          };
+
+                          if (isPowerOfTwo(slotsHalf)) {
+                               const auto n = static_cast<uint32_t>(std::log2(slotsHalf));
+                               if (index >= 0)
+                                    return static_cast<uint32_t>(index - ((index >> n) << n));
+                               return static_cast<uint32_t>(index + islots + ((std::abs(index) >> n) << n));
+                          }
+                          return static_cast<uint32_t>((islots + index % islots) % islots);
+                     };
+
+                     // Main loops: mirror FHECKKSRNS::FindSlotsToCoeffsRotationIndices
+                     for (size_t s = 0; s < (levelBudget - flagRem); ++s) {
+                          const uint32_t scalingFactor = 1U << (s * layersCollapse);
+                          const int32_t halfRots       = (1 - static_cast<int32_t>(numRotations + 1) / 2);
+                          for (int32_t j = halfRots; j < static_cast<int32_t>(g + halfRots); ++j) {
+                               indexList.emplace_back(reduceRotation(j * static_cast<int32_t>(scalingFactor), M / 4));
+                          }
+                          for (size_t i = 0; i < b; ++i) {
+                               indexList.emplace_back(
+                                    reduceRotation(static_cast<int32_t>((g * i) * scalingFactor), M / 4));
+                          }
+                     }
+
+                     if (flagRem) {
+                          uint32_t s                   = levelBudget - flagRem;
+                          const uint32_t scalingFactor = 1U << (s * layersCollapse);
+                          const int32_t halfRots       = (1 - static_cast<int32_t>(numRotationsRem + 1) / 2);
+                          for (int32_t j = halfRots; j < static_cast<int32_t>(gRem + halfRots); ++j) {
+                               indexList.emplace_back(
+                                    reduceRotation(j * static_cast<int32_t>(scalingFactor), M / 4));
+                          }
+                          for (size_t i = 0; i < bRem; ++i) {
+                               indexList.emplace_back(
+                                    reduceRotation(static_cast<int32_t>((gRem * i) * scalingFactor), M / 4));
+                          }
+                     }
+
+                     uint32_t m = slots * 4;
+                     // additional automorphisms are needed for sparse bootstrapping
+                     if (m != M) {
+                          for (size_t j = 1; j < M / m; j <<= 1) {
+                               indexList.emplace_back(static_cast<uint32_t>(j * slots));
+                          }
+                     }
+
+                     return indexList; }, py::arg("slots"), py::arg("M"))
+         // Expose encoding-side rotation index generation: FHECKKSRNS::FindCoeffsToSlotsRotationIndices
+         .def("FindCoeffsToSlotsRotationIndices", [](CryptoContext<DCRTPoly> cc, uint32_t slots, uint32_t M)
+              {
+                     SchemeBase_TWIN* scheme_ptr =
+                          reinterpret_cast<SchemeBase_TWIN*>(cc->GetScheme().get());
+                     auto fhe_ptr = reinterpret_cast<FHECKKSRNS_TWIN*>(
+                          dynamic_cast<FHECKKSRNS*>(scheme_ptr->m_FHE.get()));
+
+                     // Mirror FHECKKSRNS::FindCoeffsToSlotsRotationIndices logic using
+                     // the precomputed encoding parameters in m_bootPrecomMap (m_paramsEnc).
+                     auto it = fhe_ptr->m_bootPrecomMap.find(slots);
+                     if (it == fhe_ptr->m_bootPrecomMap.end() || !it->second) {
+                          OPENFHE_THROW("FindCoeffsToSlotsRotationIndices: no bootstrap precomputation for given slots");
+                     }
+
+                     const CKKSBootstrapPrecom& p = *it->second;
+
+                     uint32_t levelBudget     = p.m_paramsEnc[CKKS_BOOT_PARAMS::LEVEL_BUDGET];
+                     uint32_t layersCollapse  = p.m_paramsEnc[CKKS_BOOT_PARAMS::LAYERS_COLL];
+                     uint32_t remCollapse     = p.m_paramsEnc[CKKS_BOOT_PARAMS::LAYERS_REM];
+                     uint32_t numRotations    = p.m_paramsEnc[CKKS_BOOT_PARAMS::NUM_ROTATIONS];
+                     uint32_t b               = p.m_paramsEnc[CKKS_BOOT_PARAMS::BABY_STEP];
+                     uint32_t g               = p.m_paramsEnc[CKKS_BOOT_PARAMS::GIANT_STEP];
+                     uint32_t numRotationsRem = p.m_paramsEnc[CKKS_BOOT_PARAMS::NUM_ROTATIONS_REM];
+                     uint32_t bRem            = p.m_paramsEnc[CKKS_BOOT_PARAMS::BABY_STEP_REM];
+                     uint32_t gRem            = p.m_paramsEnc[CKKS_BOOT_PARAMS::GIANT_STEP_REM];
+
+                     uint32_t flagRem = (remCollapse == 0) ? 0u : 1u;
+
+                     std::vector<uint32_t> indexList;
+                     // To avoid overflowing uint32_t variables, we do some math operations below in a specific order
+                     // Computing all indices for baby-step giant-step procedure for encoding and decoding
+                     int32_t indexListSz = static_cast<int32_t>(b) + g - 2 + bRem + gRem - 2 + 1 + static_cast<int32_t>(M);
+                     if (indexListSz < 0)
+                          OPENFHE_THROW("FindCoeffsToSlotsRotationIndices: indexListSz can not be negative");
+                     indexList.reserve(static_cast<size_t>(indexListSz));
+
+                     auto reduceRotation = [](int32_t index, uint32_t slotsHalf) -> uint32_t {
+                          const auto islots = static_cast<int32_t>(slotsHalf);
+                          auto isPowerOfTwo = [](uint32_t x) {
+                               return x && !(x & (x - 1));
+                          };
+
+                          if (isPowerOfTwo(slotsHalf)) {
+                               const auto n = static_cast<uint32_t>(std::log2(slotsHalf));
+                               if (index >= 0)
+                                    return static_cast<uint32_t>(index - ((index >> n) << n));
+                               return static_cast<uint32_t>(index + islots + ((std::abs(index) >> n) << n));
+                          }
+                          return static_cast<uint32_t>((islots + index % islots) % islots);
+                     };
+
+                     // Main loops: mirror FHECKKSRNS::FindCoeffsToSlotsRotationIndices
+                     for (int32_t s = static_cast<int32_t>(levelBudget) - 1; s >= static_cast<int32_t>(flagRem); --s) {
+                          const uint32_t scalingFactor = 1U << ((s - flagRem) * layersCollapse + remCollapse);
+                          const int32_t halfRots       = (1 - static_cast<int32_t>((numRotations + 1) / 2));
+                          for (int32_t j = halfRots; j < static_cast<int32_t>(g + halfRots); ++j) {
+                               indexList.emplace_back(reduceRotation(j * static_cast<int32_t>(scalingFactor), slots));
+                          }
+                          for (size_t i = 0; i < b; ++i) {
+                               indexList.emplace_back(
+                                    reduceRotation(static_cast<int32_t>((g * i) * scalingFactor), M / 4));
+                          }
+                     }
+
+                     if (flagRem) {
+                          const int32_t halfRots = (1 - static_cast<int32_t>((numRotationsRem + 1) / 2));
+                          for (int32_t j = halfRots; j < static_cast<int32_t>(gRem + halfRots); ++j) {
+                               indexList.emplace_back(reduceRotation(j, slots));
+                          }
+                          for (size_t i = 0; i < bRem; ++i) {
+                               indexList.emplace_back(
+                                    reduceRotation(static_cast<int32_t>(gRem * i), M / 4));
+                          }
+                     }
+
+                     uint32_t m = slots * 4;
+                     // additional automorphisms are needed for sparse bootstrapping
+                     if (m != M) {
+                          for (size_t j = 1; j < M / m; j <<= 1) {
+                               indexList.emplace_back(static_cast<uint32_t>(j * slots));
+                          }
+                     }
+
+                     return indexList; }, py::arg("slots"), py::arg("M"))
+         .def("Getm_bootPrecomMap", [](CryptoContext<DCRTPoly> cc)
+              {
+                 SchemeBase_TWIN* scheme_ptr = reinterpret_cast<SchemeBase_TWIN*>(cc->GetScheme().get());
+                 auto fhe_ptr = reinterpret_cast<FHECKKSRNS_TWIN*>(dynamic_cast<FHECKKSRNS*>(scheme_ptr->m_FHE.get()));
+
+                 py::dict out; // Python 中的返回值: { slots(int) : { field_name: value, ... } }
+
+                 for (auto& it : fhe_ptr->m_bootPrecomMap) {
+                     uint32_t slots = it.first;
+                     const auto& precomPtr = it.second;
+                     if (!precomPtr) {
+                         continue; // 应该不会发生, 防御性编程
+                     }
+                     const CKKSBootstrapPrecom& pre = *precomPtr;
+
+                     py::dict info;
+                     info["slots"]     = pre.m_slots;
+                     info["dim1"]      = pre.m_dim1;
+                     info["gs"]        = pre.m_gs;
+                     info["levelEnc"]  = pre.m_levelEnc;
+                     info["levelDec"]  = pre.m_levelDec;
+                     info["paramsEnc"] = pre.m_paramsEnc; // std::vector<int32_t> -> list[int]
+                     info["paramsDec"] = pre.m_paramsDec;
+
+                     // 只暴露轻量级统计信息, 避免直接传输 ReadOnlyPlaintext/Ciphertext
+                     info["U0Pre_size"]        = pre.m_U0Pre.size();
+                     info["U0hatTPre_size"]    = pre.m_U0hatTPre.size();
+                     info["U0PreFFT_rows"]     = pre.m_U0PreFFT.size();
+                     info["U0hatTPreFFT_rows"] = pre.m_U0hatTPreFFT.size();
+
+                     out[py::int_(slots)] = std::move(info);
                  }
 
-                 std::map<int, int> autoIdx2rotIdx_map;
-                 for (size_t i = 0; i < autoIndices.size(); ++i)
-                 {
-                     autoIdx2rotIdx_map[int(autoIndices[i])] = int(rotIndices[i]);
-                 }
+                 return out; })
+         .def("Getm_bootPrecomMap_paramsEnc", [](CryptoContext<DCRTPoly> cc)
+              {
+        SchemeBase_TWIN* scheme_ptr =
+            reinterpret_cast<SchemeBase_TWIN*>(cc->GetScheme().get());
+        auto fhe_ptr = reinterpret_cast<FHECKKSRNS_TWIN*>(
+            dynamic_cast<FHECKKSRNS*>(scheme_ptr->m_FHE.get()));
 
-                 return autoIdx2rotIdx_map; })
+        py::dict out; // { slots(int) : paramsEnc(list[int]) }
+        for (auto& it : fhe_ptr->m_bootPrecomMap) {
+            uint32_t slots = it.first;
+            const auto& precomPtr = it.second;
+            if (!precomPtr) {
+                continue;
+            }
+            const CKKSBootstrapPrecom& pre = *precomPtr;
+            out[py::int_(slots)] = pre.m_paramsEnc;
+        }
+        return out; })
+         .def("Getm_bootPrecomMap_paramsDec", [](CryptoContext<DCRTPoly> cc)
+              {
+        SchemeBase_TWIN* scheme_ptr =
+            reinterpret_cast<SchemeBase_TWIN*>(cc->GetScheme().get());
+        auto fhe_ptr = reinterpret_cast<FHECKKSRNS_TWIN*>(
+            dynamic_cast<FHECKKSRNS*>(scheme_ptr->m_FHE.get()));
+
+        py::dict out; // { slots(int) : paramsDec(list[int]) }
+        for (auto& it : fhe_ptr->m_bootPrecomMap) {
+            uint32_t slots = it.first;
+            const auto& precomPtr = it.second;
+            if (!precomPtr) {
+                continue;
+            }
+            const CKKSBootstrapPrecom& pre = *precomPtr;
+            out[py::int_(slots)] = pre.m_paramsDec;
+        }
+        return out; })
          .def("GetEvalBootstrapContext", [](CryptoContext<DCRTPoly> cc)
               {
         SchemeBase_TWIN *scheme_ptr =

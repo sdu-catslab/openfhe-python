@@ -27,27 +27,293 @@ class FHECKKSRNS_TWIN : public FHERNS
     // TODO: there are new member VAR in class(FHECKKSRNS) in new version(openfhe development)
     // for hijack&TWIN technique we must keep the same member VAR as FHECKKSRNS to keep correctness
 public:
-    virtual ~FHECKKSRNS_TWIN() {}
-    std::vector<int32_t> FindBootstrapRotationIndices(uint32_t slots, uint32_t M);
     uint32_t m_correctionFactor;
 
     // key tuple is dim1, levelBudgetEnc, levelBudgetDec
     std::map<uint32_t, std::shared_ptr<CKKSBootstrapPrecom>> m_bootPrecomMap;
+
+    // using ParmType = typename DCRTPoly::Params;
+    // using DugType = typename DCRTPoly::DugType;
+    // using DggType = typename DCRTPoly::DggType;
+    // using TugType = typename DCRTPoly::TugType;
+
+    // virtual ~FHECKKSRNS_TWIN() = default;
+
+    // //------------------------------------------------------------------------------
+    // // Bootstrap Wrapper
+    // //------------------------------------------------------------------------------
+
+    // void EvalBootstrapSetup(const CryptoContextImpl<DCRTPoly> &cc, std::vector<uint32_t> levelBudget,
+    //                         std::vector<uint32_t> dim1, uint32_t slots, uint32_t correctionFactor,
+    //                         bool precompute) override;
+
+    // std::shared_ptr<std::map<uint32_t, EvalKey<DCRTPoly>>> EvalBootstrapKeyGen(const PrivateKey<DCRTPoly> privateKey,
+    //                                                                            uint32_t slots) override;
+
+    // void EvalBootstrapPrecompute(const CryptoContextImpl<DCRTPoly> &cc, uint32_t slots) override;
+
+    // Ciphertext<DCRTPoly> EvalBootstrap(ConstCiphertext<DCRTPoly> &ciphertext, uint32_t numIterations,
+    //                                    uint32_t precision) const override;
+
+    // void EvalFBTSetup(const CryptoContextImpl<DCRTPoly> &cc, const std::vector<std::complex<double>> &coefficients,
+    //                   uint32_t numSlots, const BigInteger &PIn, const BigInteger &POut, const BigInteger &Bigq,
+    //                   const PublicKey<DCRTPoly> &pubKey, const std::vector<uint32_t> &dim1,
+    //                   const std::vector<uint32_t> &levelBudget, uint32_t lvlsAfterBoot = 0,
+    //                   uint32_t depthLeveledComputation = 0, size_t order = 1) override;
+
+    // void EvalFBTSetup(const CryptoContextImpl<DCRTPoly> &cc, const std::vector<int64_t> &coefficients,
+    //                   uint32_t numSlots, const BigInteger &PIn, const BigInteger &POut, const BigInteger &Bigq,
+    //                   const PublicKey<DCRTPoly> &pubKey, const std::vector<uint32_t> &dim1,
+    //                   const std::vector<uint32_t> &levelBudget, uint32_t lvlsAfterBoot = 0,
+    //                   uint32_t depthLeveledComputation = 0, size_t order = 1) override;
+
+    // Ciphertext<DCRTPoly> EvalFBT(ConstCiphertext<DCRTPoly> &ciphertext,
+    //                              const std::vector<std::complex<double>> &coefficients, uint32_t digitBitSize,
+    //                              const BigInteger &initialScaling, uint64_t postScaling, uint32_t levelToReduce = 0,
+    //                              size_t order = 1) override;
+    // Ciphertext<DCRTPoly> EvalFBT(ConstCiphertext<DCRTPoly> &ciphertext, const std::vector<int64_t> &coefficients,
+    //                              uint32_t digitBitSize, const BigInteger &initialScaling, uint64_t postScaling,
+    //                              uint32_t levelToReduce = 0, size_t order = 1) override;
+
+    // Ciphertext<DCRTPoly> EvalFBTNoDecoding(ConstCiphertext<DCRTPoly> &ciphertext,
+    //                                        const std::vector<std::complex<double>> &coefficients, uint32_t digitBitSize,
+    //                                        const BigInteger &initialScaling, size_t order = 1) override;
+    // Ciphertext<DCRTPoly> EvalFBTNoDecoding(ConstCiphertext<DCRTPoly> &ciphertext,
+    //                                        const std::vector<int64_t> &coefficients, uint32_t digitBitSize,
+    //                                        const BigInteger &initialScaling, size_t order = 1) override;
+
+    // Ciphertext<DCRTPoly> EvalHomDecoding(ConstCiphertext<DCRTPoly> &ciphertext, uint64_t postScaling,
+    //                                      uint32_t levelToReduce = 0) override;
+
+    // std::shared_ptr<seriesPowers<DCRTPoly>> EvalMVBPrecompute(ConstCiphertext<DCRTPoly> &ciphertext,
+    //                                                           const std::vector<std::complex<double>> &coeffs,
+    //                                                           uint32_t digitBitSize, const BigInteger &initialScaling,
+    //                                                           size_t order = 1) override;
+    // std::shared_ptr<seriesPowers<DCRTPoly>> EvalMVBPrecompute(ConstCiphertext<DCRTPoly> &ciphertext,
+    //                                                           const std::vector<int64_t> &coeffs, uint32_t digitBitSize,
+    //                                                           const BigInteger &initialScaling,
+    //                                                           size_t order = 1) override;
+
+    // Ciphertext<DCRTPoly> EvalMVB(const std::shared_ptr<seriesPowers<DCRTPoly>> ciphertexts,
+    //                              const std::vector<std::complex<double>> &coeffs, uint32_t digitBitSize,
+    //                              const uint64_t postScaling, uint32_t levelToReduce = 0, size_t order = 1) override;
+    // Ciphertext<DCRTPoly> EvalMVB(const std::shared_ptr<seriesPowers<DCRTPoly>> ciphertexts,
+    //                              const std::vector<int64_t> &coeffs, uint32_t digitBitSize, const uint64_t postScaling,
+    //                              uint32_t levelToReduce = 0, size_t order = 1) override;
+
+    // Ciphertext<DCRTPoly> EvalMVBNoDecoding(const std::shared_ptr<seriesPowers<DCRTPoly>> ciphertexts,
+    //                                        const std::vector<std::complex<double>> &coefficients, uint32_t digitBitSize,
+    //                                        size_t order = 1) override;
+    // Ciphertext<DCRTPoly> EvalMVBNoDecoding(const std::shared_ptr<seriesPowers<DCRTPoly>> ciphertexts,
+    //                                        const std::vector<int64_t> &coefficients, uint32_t digitBitSize,
+    //                                        size_t order = 1) override;
+
+    // Ciphertext<DCRTPoly> EvalHermiteTrigSeries(ConstCiphertext<DCRTPoly> &ciphertext,
+    //                                            const std::vector<std::complex<double>> &coefficientsCheb, double a,
+    //                                            double b, const std::vector<std::complex<double>> &coefficientsHerm,
+    //                                            size_t precomp) override;
+    // Ciphertext<DCRTPoly> EvalHermiteTrigSeries(ConstCiphertext<DCRTPoly> &ciphertext,
+    //                                            const std::vector<std::complex<double>> &coefficientsCheb, double a,
+    //                                            double b, const std::vector<int64_t> &coefficientsHerm,
+    //                                            size_t precomp) override;
+
+    // //------------------------------------------------------------------------------
+    // // Precomputations for CoeffsToSlots and SlotsToCoeffs
+    // //------------------------------------------------------------------------------
+
+    // std::vector<ReadOnlyPlaintext> EvalLinearTransformPrecompute(
+    //     const CryptoContextImpl<DCRTPoly> &cc, const std::vector<std::vector<std::complex<double>>> &A,
+    //     double scale = 1., uint32_t L = 0) const;
+
+    // std::vector<ReadOnlyPlaintext> EvalLinearTransformPrecompute(
+    //     const CryptoContextImpl<DCRTPoly> &cc, const std::vector<std::vector<std::complex<double>>> &A,
+    //     const std::vector<std::vector<std::complex<double>>> &B, uint32_t orientation = 0, double scale = 1,
+    //     uint32_t L = 0) const;
+
+    // std::vector<std::vector<ReadOnlyPlaintext>> EvalCoeffsToSlotsPrecompute(const CryptoContextImpl<DCRTPoly> &cc,
+    //                                                                         const std::vector<std::complex<double>> &A,
+    //                                                                         const std::vector<uint32_t> &rotGroup,
+    //                                                                         bool flag_i, double scale = 1,
+    //                                                                         uint32_t L = 0) const;
+
+    // std::vector<std::vector<ReadOnlyPlaintext>> EvalSlotsToCoeffsPrecompute(const CryptoContextImpl<DCRTPoly> &cc,
+    //                                                                         const std::vector<std::complex<double>> &A,
+    //                                                                         const std::vector<uint32_t> &rotGroup,
+    //                                                                         bool flag_i, double scale = 1,
+    //                                                                         uint32_t L = 0) const;
+
+    // //------------------------------------------------------------------------------
+    // // EVALUATION: CoeffsToSlots and SlotsToCoeffs
+    // //------------------------------------------------------------------------------
+
+    // Ciphertext<DCRTPoly> EvalLinearTransform(const std::vector<ReadOnlyPlaintext> &A,
+    //                                          ConstCiphertext<DCRTPoly> &ct) const;
+
+    // Ciphertext<DCRTPoly> EvalCoeffsToSlots(const std::vector<std::vector<ReadOnlyPlaintext>> &A,
+    //                                        ConstCiphertext<DCRTPoly> &ctxt) const;
+
+    // Ciphertext<DCRTPoly> EvalSlotsToCoeffs(const std::vector<std::vector<ReadOnlyPlaintext>> &A,
+    //                                        ConstCiphertext<DCRTPoly> &ctxt) const;
+
+    // //------------------------------------------------------------------------------
+    // // SERIALIZATION
+    // //------------------------------------------------------------------------------
+
+    // template <class Archive>
+    // void save(Archive &ar) const
+    // {
+    //     ar(cereal::base_class<FHERNS>(this));
+    //     ar(cereal::make_nvp("paramMap", m_bootPrecomMap));
+    //     ar(cereal::make_nvp("corFactor", m_correctionFactor));
+    // }
+
+    // template <class Archive>
+    // void load(Archive &ar)
+    // {
+    //     ar(cereal::base_class<FHERNS>(this));
+    //     ar(cereal::make_nvp("paramMap", m_bootPrecomMap));
+    //     ar(cereal::make_nvp("corFactor", m_correctionFactor));
+    // }
+
+    // // To be deprecated; left for backwards compatibility
+    // static uint32_t GetBootstrapDepth(uint32_t approxModDepth, const std::vector<uint32_t> &levelBudget,
+    //                                   SecretKeyDist secretKeyDist);
+
+    // static uint32_t GetBootstrapDepth(const std::vector<uint32_t> &levelBudget, SecretKeyDist secretKeyDist);
+
+    // template <typename VectorDataType>
+    // static uint32_t GetFBTDepth(const std::vector<uint32_t> &levelBudget,
+    //                             const std::vector<VectorDataType> &coefficients, const BigInteger &PInput, size_t order,
+    //                             SecretKeyDist skd);
+
+    // template <typename VectorDataType>
+    // static uint32_t AdjustDepthFBT(const std::vector<VectorDataType> &coefficients, const BigInteger &PInput,
+    //                                size_t order, SecretKeyDist skd = SPARSE_TERNARY);
+
+    // // generates a key going from a denser secret to a sparser one
+    // static EvalKey<DCRTPoly> KeySwitchGenSparse(const PrivateKey<DCRTPoly> &oldPrivateKey,
+    //                                             const PrivateKey<DCRTPoly> &newPrivateKey);
+
+    // // generates a key going from a denser secret to a sparser one
+    // static Ciphertext<DCRTPoly> KeySwitchSparse(Ciphertext<DCRTPoly> &ciphertext, const EvalKey<DCRTPoly> &ek);
+
+    // std::string SerializedObjectName() const
+    // {
+    //     return "FHECKKSRNS";
+    // }
+
+    // CKKSBootstrapPrecom &GetBootPrecom(uint32_t slots) const
+    // {
+    //     auto pair = m_bootPrecomMap.find(slots);
+    //     if (pair != m_bootPrecomMap.end())
+    //         return *(pair->second);
+    //     OPENFHE_THROW("Precomputations for " + std::to_string(slots) + " slots not found.");
+    // }
+
+    //------------------------------------------------------------------------------
+    // Find Rotation Indices
+    //------------------------------------------------------------------------------
+    // std::vector<int32_t> FindBootstrapRotationIndices(uint32_t slots, uint32_t M);
+
+    //     // ATTN: The following 3 functions are helper methods to be called in FindBootstrapRotationIndices() only.
+    //     // so they DO NOT remove possible duplicates and automorphisms corresponding to 0 and M/4.
+    //     // These methods completely depend on FindBootstrapRotationIndices() to do that.
+    //     std::vector<uint32_t> FindLinearTransformRotationIndices(uint32_t slots, uint32_t M);
+    //     std::vector<uint32_t> FindCoeffsToSlotsRotationIndices(uint32_t slots, uint32_t M);
+    //     std::vector<uint32_t> FindSlotsToCoeffsRotationIndices(uint32_t slots, uint32_t M);
+
+    //     //------------------------------------------------------------------------------
+    //     // Auxiliary Bootstrap Functions
+    //     //------------------------------------------------------------------------------
+    //     uint32_t GetBootstrapDepthInternal(uint32_t approxModDepth, const std::vector<uint32_t> &levelBudget,
+    //                                        const CryptoContextImpl<DCRTPoly> &cc);
+    //     static uint32_t GetModDepthInternal(SecretKeyDist secretKeyDist);
+
+    //     void AdjustCiphertext(Ciphertext<DCRTPoly> &ciphertext, double correction) const;
+    //     void AdjustCiphertextFBT(Ciphertext<DCRTPoly> &ciphertext, double correction) const;
+
+    //     void ExtendCiphertext(std::vector<DCRTPoly> &ciphertext, const CryptoContextImpl<DCRTPoly> &cc,
+    //                           const std::shared_ptr<DCRTPoly::Params> params) const;
+
+    //     void ApplyDoubleAngleIterations(Ciphertext<DCRTPoly> &ciphertext, uint32_t numIt) const;
+
+    //     Plaintext MakeAuxPlaintext(const CryptoContextImpl<DCRTPoly> &cc, const std::shared_ptr<ParmType> params,
+    //                                const std::vector<std::complex<double>> &value, size_t noiseScaleDeg, uint32_t level,
+    //                                uint32_t slots) const;
+
+    //     Ciphertext<DCRTPoly> EvalMultExt(ConstCiphertext<DCRTPoly> ciphertext, ConstPlaintext plaintext) const;
+
+    //     void EvalAddExtInPlace(Ciphertext<DCRTPoly> &ciphertext1, ConstCiphertext<DCRTPoly> ciphertext2) const;
+
+    //     Ciphertext<DCRTPoly> EvalAddExt(ConstCiphertext<DCRTPoly> ciphertext1, ConstCiphertext<DCRTPoly> ciphertext2) const;
+
+    //     EvalKey<DCRTPoly> ConjugateKeyGen(const PrivateKey<DCRTPoly> privateKey) const;
+
+    //     Ciphertext<DCRTPoly> Conjugate(ConstCiphertext<DCRTPoly> ciphertext,
+    //                                    const std::map<uint32_t, EvalKey<DCRTPoly>> &evalKeys) const;
+
+    //     /**
+    //      * Set modulus and recalculates the vector values to fit the modulus
+    //      *
+    //      * @param &vec input vector
+    //      * @param &bigValue big bound of the vector values.
+    //      * @param &modulus modulus to be set for vector.
+    //      */
+    //     void FitToNativeVector(uint32_t ringDim, const std::vector<int64_t> &vec, int64_t bigBound,
+    //                            NativeVector *nativeVec) const;
+
+    // #if NATIVEINT == 128
+    //     /**
+    //      * Set modulus and recalculates the vector values to fit the modulus
+    //      *
+    //      * @param &vec input vector
+    //      * @param &bigValue big bound of the vector values.
+    //      * @param &modulus modulus to be set for vector.
+    //      */
+    //     void FitToNativeVector(uint32_t ringDim, const std::vector<int128_t> &vec, int128_t bigBound,
+    //                            NativeVector *nativeVec) const;
+    // #endif
+
+    //     template <typename VectorDataType>
+    //     void EvalFBTSetupInternal(const CryptoContextImpl<DCRTPoly> &cc, const std::vector<VectorDataType> &coefficients,
+    //                               uint32_t numSlots, const BigInteger &PIn, const BigInteger &POut, const BigInteger &Bigq,
+    //                               const PublicKey<DCRTPoly> &pubKey, const std::vector<uint32_t> &dim1,
+    //                               const std::vector<uint32_t> &levelBudget, uint32_t lvlsAfterBoot = 0,
+    //                               uint32_t depthLeveledComputation = 0, size_t order = 1);
+
+    //     template <typename VectorDataType>
+    //     Ciphertext<DCRTPoly> EvalHermiteTrigSeriesInternal(ConstCiphertext<DCRTPoly> &ciphertext,
+    //                                                        const std::vector<std::complex<double>> &coefficientsCheb,
+    //                                                        double a, double b,
+    //                                                        const std::vector<VectorDataType> &coefficientsHerm,
+    //                                                        size_t precomp);
+
+    //     template <typename VectorDataType>
+    //     std::shared_ptr<seriesPowers<DCRTPoly>> EvalMVBPrecomputeInternal(ConstCiphertext<DCRTPoly> &ciphertext,
+    //                                                                       const std::vector<VectorDataType> &coefficients,
+    //                                                                       uint32_t digitBitSize,
+    //                                                                       const BigInteger &initialScaling,
+    //                                                                       size_t order = 1);
+
+    //     template <typename VectorDataType>
+    //     Ciphertext<DCRTPoly> EvalMVBNoDecodingInternal(std::shared_ptr<seriesPowers<DCRTPoly>> ciphertext,
+    //                                                    const std::vector<VectorDataType> &coefficients,
+    //                                                    uint32_t digitBitSize, size_t order = 1);
     // TODO: unify this
-    static const uint32_t K_SPARSE = 28;
-    static const uint32_t K_SPARSE_ALT = 25;
+    static constexpr uint32_t K_SPARSE = 28;
+    static constexpr uint32_t K_SPARSE_ALT = 25;
     // corresponds to probability of less than 2^{-128}
-    static const uint32_t K_SPARSE_ENCAPSULATED = 16;
+    static constexpr uint32_t K_SPARSE_ENCAPSULATED = 16;
 
     // upper bound for the number of overflows in the uniform secret case
-    static const uint32_t K_UNIFORM = 512;
+    static constexpr uint32_t K_UNIFORM = 512;
     // upper bound for the number of overflows in the uniform secret case for compositeDegreee > 2
-    static const uint32_t K_UNIFORMEXT = 768;
+    static constexpr uint32_t K_UNIFORMEXT = 768;
     // number of double-angle iterations in CKKS bootstrapping. Must be static because it is used in a static function.
-    static const uint32_t R_UNIFORM = 6;
+    static constexpr uint32_t R_UNIFORM = 6;
     // number of double-angle iterations in CKKS bootstrapping. Must be static because it is used in a static function.
     // same value is used for both SPARSE and ENCAPSULATED_SPARSE
-    static const uint32_t R_SPARSE = 3;
+    static constexpr uint32_t R_SPARSE = 3;
 
     // TODO: regenerate these as hexfloat
 
@@ -376,7 +642,7 @@ public:
     uint64_t m_counter = 0;
 };
 
-std::vector<int32_t> FHECKKSRNS_TWIN::FindBootstrapRotationIndices(uint32_t slots, uint32_t M)
-{
-    return reinterpret_cast<FHECKKSRNS *>(this)->FindBootstrapRotationIndices(slots, M);
-}
+// std::vector<int32_t> FHECKKSRNS_TWIN::FindBootstrapRotationIndices(uint32_t slots, uint32_t M)
+// {
+//     return reinterpret_cast<FHECKKSRNS *>(this)->FindBootstrapRotationIndices(slots, M);
+// }
