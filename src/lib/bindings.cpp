@@ -1,928 +1,989 @@
+//==================================================================================
+// BSD 2-Clause License
+//
+// Copyright (c) 2023-2025, Duality Technologies Inc. and other contributors
+//
+// All rights reserved.
+//
+// Author TPOC: contact@openfhe.org
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are met:
+//
+// 1. Redistributions of source code must retain the above copyright notice, this
+//    list of conditions and the following disclaimer.
+//
+// 2. Redistributions in binary form must reproduce the above copyright notice,
+//    this list of conditions and the following disclaimer in the documentation
+//    and/or other materials provided with the distribution.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+// DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+// FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+// DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+// SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+// CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+// OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+//==================================================================================
 #include "bindings.h"
-#include "binfhe_bindings.h"
-#include "ciphertext_docs.h"
-#include "cryptocontext_docs.h"
-#include "cryptocontext_wrapper.h"
-#include "cryptoparameters_docs.h"
+
 #include "hijack.hpp"
-#include "key/key-ser.h"
 #include "openfhe.h"
-#include "plaintext_docs.h"
-#include "serialization.h"
+#include "key/key-ser.h"
+#include "binfhe_bindings.h"
+
+#include <cmath>
 #include <iostream>
 #include <map>
+#include <tuple>
+#include <string>
+#include <stdexcept>
+#include <utility>
+#include <vector>
+
 #include <pybind11/complex.h>
 #include <pybind11/functional.h>
 #include <pybind11/iostream.h>
 #include <pybind11/numpy.h>
 #include <pybind11/operators.h>
-#include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
-#include <vector>
+
+#include "cryptocontext_docs.h"
+#include "cryptoparameters_docs.h"
+#include "plaintext_docs.h"
+#include "ciphertext_docs.h"
 
 using namespace lbcrypto;
 namespace py = pybind11;
-PYBIND11_MAKE_OPAQUE(std::map<usint, EvalKey<DCRTPoly>>);
 
-template <typename T>
-void bind_parameters(py::module &m, const std::string name) {
-  py::class_<CCParams<T>>(m, name.c_str())
-      .def(py::init<>())
-      // getters
-      .def("GetPlaintextModulus", &CCParams<T>::GetPlaintextModulus)
-      .def("GetScheme", &CCParams<T>::GetScheme)
-      .def("GetDigitSize", &CCParams<T>::GetDigitSize)
-      .def("GetStandardDeviation", &CCParams<T>::GetStandardDeviation)
-      .def("GetSecretKeyDist", &CCParams<T>::GetSecretKeyDist)
-      .def("GetMaxRelinSkDeg", &CCParams<T>::GetMaxRelinSkDeg)
-      .def("GetPREMode", &CCParams<T>::GetPREMode)
-      .def("GetMultipartyMode", &CCParams<T>::GetMultipartyMode)
-      .def("GetExecutionMode", &CCParams<T>::GetExecutionMode)
-      .def("GetDecryptionNoiseMode", &CCParams<T>::GetDecryptionNoiseMode)
-      .def("GetNoiseEstimate", &CCParams<T>::GetNoiseEstimate)
-      .def("GetDesiredPrecision", &CCParams<T>::GetDesiredPrecision)
-      .def("GetStatisticalSecurity", &CCParams<T>::GetStatisticalSecurity)
-      .def("GetNumAdversarialQueries", &CCParams<T>::GetNumAdversarialQueries)
-      //.def("GetThresholdNumOfParties", &CCParams<T>::GetThresholdNumOfParties)
-      .def("GetKeySwitchTechnique", &CCParams<T>::GetKeySwitchTechnique)
-      .def("GetScalingTechnique", &CCParams<T>::GetScalingTechnique)
-      .def("GetBatchSize", &CCParams<T>::GetBatchSize)
-      .def("GetFirstModSize", &CCParams<T>::GetFirstModSize)
-      .def("GetNumLargeDigits", &CCParams<T>::GetNumLargeDigits)
-      .def("GetMultiplicativeDepth", &CCParams<T>::GetMultiplicativeDepth)
-      .def("GetScalingModSize", &CCParams<T>::GetScalingModSize)
-      .def("GetSecurityLevel", &CCParams<T>::GetSecurityLevel)
-      .def("GetRingDim", &CCParams<T>::GetRingDim)
-      .def("GetEvalAddCount", &CCParams<T>::GetEvalAddCount)
-      .def("GetKeySwitchCount", &CCParams<T>::GetKeySwitchCount)
-      .def("GetEncryptionTechnique", &CCParams<T>::GetEncryptionTechnique)
-      .def("GetMultiplicationTechnique",
-           &CCParams<T>::GetMultiplicationTechnique)
-      .def("GetPRENumHops", &CCParams<T>::GetPRENumHops)
-      .def("GetInteractiveBootCompressionLevel",
-           &CCParams<T>::GetInteractiveBootCompressionLevel)
-      // setters
-      .def("SetPlaintextModulus", &CCParams<T>::SetPlaintextModulus)
-      .def("SetDigitSize", &CCParams<T>::SetDigitSize)
-      .def("SetStandardDeviation", &CCParams<T>::SetStandardDeviation)
-      .def("SetSecretKeyDist", &CCParams<T>::SetSecretKeyDist)
-      .def("SetMaxRelinSkDeg", &CCParams<T>::SetMaxRelinSkDeg)
-      .def("SetPREMode", &CCParams<T>::SetPREMode)
-      .def("SetMultipartyMode", &CCParams<T>::SetMultipartyMode)
-      .def("SetExecutionMode", &CCParams<T>::SetExecutionMode)
-      .def("SetDecryptionNoiseMode", &CCParams<T>::SetDecryptionNoiseMode)
-      .def("SetNoiseEstimate", &CCParams<T>::SetNoiseEstimate)
-      .def("SetDesiredPrecision", &CCParams<T>::SetDesiredPrecision)
-      .def("SetStatisticalSecurity", &CCParams<T>::SetStatisticalSecurity)
-      .def("SetNumAdversarialQueries", &CCParams<T>::SetNumAdversarialQueries)
-      .def("SetThresholdNumOfParties", &CCParams<T>::SetThresholdNumOfParties)
-      .def("SetKeySwitchTechnique", &CCParams<T>::SetKeySwitchTechnique)
-      .def("SetScalingTechnique", &CCParams<T>::SetScalingTechnique)
-      .def("SetBatchSize", &CCParams<T>::SetBatchSize)
-      .def("SetFirstModSize", &CCParams<T>::SetFirstModSize)
-      .def("SetNumLargeDigits", &CCParams<T>::SetNumLargeDigits)
-      .def("SetMultiplicativeDepth", &CCParams<T>::SetMultiplicativeDepth)
-      .def("SetScalingModSize", &CCParams<T>::SetScalingModSize)
-      .def("SetSecurityLevel", &CCParams<T>::SetSecurityLevel)
-      .def("SetRingDim", &CCParams<T>::SetRingDim)
-      .def("SetEvalAddCount", &CCParams<T>::SetEvalAddCount)
-      .def("SetKeySwitchCount", &CCParams<T>::SetKeySwitchCount)
-      .def("SetEncryptionTechnique", &CCParams<T>::SetEncryptionTechnique)
-      .def("SetMultiplicationTechnique",
-           &CCParams<T>::SetMultiplicationTechnique)
-      .def("SetPRENumHops", &CCParams<T>::SetPRENumHops)
-      .def("SetInteractiveBootCompressionLevel",
-           &CCParams<T>::SetInteractiveBootCompressionLevel)
-      .def("__str__", [](const CCParams<T> &params) {
-        std::stringstream stream;
-        stream << params;
-        return stream.str();
-      });
+// disable the PYBIND11 template-based conversion for this type
+PYBIND11_MAKE_OPAQUE(std::map<uint32_t, EvalKey<DCRTPoly>>);
 
-  //
+inline std::shared_ptr<CryptoParametersRNS> GetParamsRNSChecked(const CryptoContext<DCRTPoly> &self, const std::string &func)
+{
+     auto ptr = std::dynamic_pointer_cast<CryptoParametersRNS>(self->GetCryptoParameters());
+     if (!ptr)
+          OPENFHE_THROW("Failed to cast to CryptoParametersRNS in " + func + "()");
+     return ptr;
 }
 
-void bind_crypto_context(py::module &m) {
-  py::class_<CryptoContextImpl<DCRTPoly>,
-             std::shared_ptr<CryptoContextImpl<DCRTPoly>>>(m, "CryptoContext")
-      .def(py::init<>())
-      .def("GetKeyGenLevel", &CryptoContextImpl<DCRTPoly>::GetKeyGenLevel,
-           cc_GetKeyGenLevel_docs)
-      .def("SetKeyGenLevel", &CryptoContextImpl<DCRTPoly>::SetKeyGenLevel,
-           cc_SetKeyGenLevel_docs, py::arg("level"))
-      .def("get_ptr",
-           [](const CryptoContext<DCRTPoly> &self) {
-             std::cout << "CC shared ptr (python cc)" << self << std::endl;
-           })
-      //.def("GetScheme",&CryptoContextImpl<DCRTPoly>::GetScheme)
-      //.def("GetCryptoParameters",
-      //&CryptoContextImpl<DCRTPoly>::GetCryptoParameters)
-      .def("GetRingDimension", &CryptoContextImpl<DCRTPoly>::GetRingDimension,
-           cc_GetRingDimension_docs)
-      .def("GetPlaintextModulus", &GetPlaintextModulusWrapper,
-           cc_GetPlaintextModulus_docs)
-      .def("GetModulus", &GetModulusWrapper, cc_GetModulus_docs)
-      .def("GetModulusCKKS", &GetModulusCKKSWrapper)
-      .def("GetScalingFactorReal", &GetScalingFactorRealWrapper,
-           cc_GetScalingFactorReal_docs)
-      .def("GetScalingTechnique", &GetScalingTechniqueWrapper)
-      .def("GetDigitSize", &GetDigitSizeWrapper)
-      .def("GetCyclotomicOrder",
-           &CryptoContextImpl<DCRTPoly>::GetCyclotomicOrder,
-           cc_GetCyclotomicOrder_docs)
-      .def("Enable",
-           static_cast<void (CryptoContextImpl<DCRTPoly>::*)(PKESchemeFeature)>(
-               &CryptoContextImpl<DCRTPoly>::Enable),
-           cc_Enable_docs, py::arg("feature"))
-      .def("KeyGen", &CryptoContextImpl<DCRTPoly>::KeyGen, cc_KeyGen_docs)
-      .def("EvalMultKeyGen", &CryptoContextImpl<DCRTPoly>::EvalMultKeyGen,
-           cc_EvalMultKeyGen_docs, py::arg("privateKey"))
-      .def("EvalMultKeysGen", &CryptoContextImpl<DCRTPoly>::EvalMultKeysGen,
-           cc_EvalMultKeysGen_docs, py::arg("privateKey"))
-      .def("EvalRotateKeyGen", &CryptoContextImpl<DCRTPoly>::EvalRotateKeyGen,
-           cc_EvalRotateKeyGen_docs, py::arg("privateKey"),
-           py::arg("indexList"), py::arg("publicKey") = nullptr)
-      .def("MakeStringPlaintext",
-           &CryptoContextImpl<DCRTPoly>::MakeStringPlaintext,
-           cc_MakeStringPlaintext_docs, py::arg("str"))
-      .def("MakePackedPlaintext",
-           &CryptoContextImpl<DCRTPoly>::MakePackedPlaintext,
-           cc_MakePackedPlaintext_docs, py::arg("value"),
-           py::arg("noiseScaleDeg") = 1, py::arg("level") = 0)
-      .def("MakeCoefPackedPlaintext",
-           &CryptoContextImpl<DCRTPoly>::MakeCoefPackedPlaintext,
-           cc_MakeCoefPackedPlaintext_docs, py::arg("value"),
-           py::arg("noiseScaleDeg ") = 1, py::arg("level") = 0)
-      // TODO (Oliveira): allow user to specify different params values
-      .def("MakeCKKSPackedPlaintext",
-           static_cast<Plaintext (CryptoContextImpl<DCRTPoly>::*)(
-               const std::vector<std::complex<double>> &, size_t, uint32_t,
-               const std::shared_ptr<ParmType>, usint) const>(
-               &CryptoContextImpl<DCRTPoly>::MakeCKKSPackedPlaintext),
-           cc_MakeCKKSPackedPlaintextComplex_docs, py::arg("value"),
-           py::arg("scaleDeg") = static_cast<size_t>(1),
-           py::arg("level") = static_cast<uint32_t>(0),
-           py::arg("params") = py::none(), py::arg("slots") = 0)
-      .def("MakeCKKSPackedPlaintext",
-           static_cast<Plaintext (CryptoContextImpl<DCRTPoly>::*)(
-               const std::vector<double> &, size_t, uint32_t,
-               const std::shared_ptr<ParmType>, usint) const>(
-               &CryptoContextImpl<DCRTPoly>::MakeCKKSPackedPlaintext),
-           cc_MakeCKKSPlaintextReal_docs, py::arg("value"),
-           py::arg("scaleDeg") = static_cast<size_t>(1),
-           py::arg("level") = static_cast<uint32_t>(0),
-           py::arg("params") = py::none(), py::arg("slots") = 0)
-      .def("EvalRotate", &CryptoContextImpl<DCRTPoly>::EvalRotate,
-           cc_EvalRotate_docs, py::arg("ciphertext"), py::arg("index"))
-      .def("EvalFastRotationPrecompute", &EvalFastRotationPrecomputeWrapper,
-           cc_EvalFastRotationPreCompute_docs, py::arg("ciphertext"))
-      .def("EvalFastRotation", &EvalFastRotationWrapper,
-           cc_EvalFastRotation_docs, py::arg("ciphertext"), py::arg("index"),
-           py::arg("m"), py::arg("digits"))
-      .def("EvalFastRotationExt", &EvalFastRotationExtWrapper,
-           cc_EvalFastRotationExt_docs, py::arg("ciphertext"), py::arg("index"),
-           py::arg("digits"), py::arg("addFirst"))
-      .def("EvalAtIndexKeyGen", &CryptoContextImpl<DCRTPoly>::EvalAtIndexKeyGen,
-           cc_EvalAtIndexKeyGen_docs, py::arg("privateKey"),
-           py::arg("indexList"), py::arg("publicKey") = nullptr)
-      .def("EvalAtIndex", &CryptoContextImpl<DCRTPoly>::EvalAtIndex,
-           cc_EvalAtIndex_docs, py::arg("ciphertext"), py::arg("index"))
-      .def("Encrypt",
-           static_cast<Ciphertext<DCRTPoly> (CryptoContextImpl<DCRTPoly>::*)(
-               const PublicKey<DCRTPoly>, Plaintext) const>(
-               &CryptoContextImpl<DCRTPoly>::Encrypt),
-           cc_Encrypt_docs, py::arg("publicKey"), py::arg("plaintext"))
-      .def("Decrypt",
-           static_cast<Plaintext (*)(
-               CryptoContext<DCRTPoly> &, const PrivateKey<DCRTPoly>,
-               ConstCiphertext<DCRTPoly>)>(&DecryptWrapper),
-           cc_Decrypt_docs, py::arg("privateKey"), py::arg("ciphertext"))
-      .def("Decrypt",
-           static_cast<Plaintext (*)(
-               CryptoContext<DCRTPoly> &, ConstCiphertext<DCRTPoly>,
-               const PrivateKey<DCRTPoly>)>(&DecryptWrapper),
-           cc_Decrypt_docs, py::arg("ciphertext"), py::arg("privateKey"))
-      .def("KeySwitchGen", &CryptoContextImpl<DCRTPoly>::KeySwitchGen,
-           cc_KeySwitchGen_docs, py::arg("oldPrivateKey"),
-           py::arg("newPrivateKey"))
-      .def("EvalAdd",
-           static_cast<Ciphertext<DCRTPoly> (CryptoContextImpl<DCRTPoly>::*)(
-               ConstCiphertext<DCRTPoly>, ConstCiphertext<DCRTPoly>) const>(
-               &CryptoContextImpl<DCRTPoly>::EvalAdd),
-           cc_EvalAdd_docs, py::arg("ciphertext1"), py::arg("ciphertext2"))
-      .def("EvalAdd",
-           static_cast<Ciphertext<DCRTPoly> (CryptoContextImpl<DCRTPoly>::*)(
-               ConstCiphertext<DCRTPoly>, double) const>(
-               &CryptoContextImpl<DCRTPoly>::EvalAdd),
-           cc_EvalAddfloat_docs, py::arg("ciphertext"), py::arg("constant"))
-      // inline Ciphertext<Element> EvalAdd(ConstCiphertext<Element> ciphertext,
-      // ConstPlaintext plaintext) const
-      .def("EvalAdd",
-           static_cast<Ciphertext<DCRTPoly> (CryptoContextImpl<DCRTPoly>::*)(
-               ConstCiphertext<DCRTPoly>, ConstPlaintext) const>(
-               &CryptoContextImpl<DCRTPoly>::EvalAdd),
-           cc_EvalAddPlaintext_docs, py::arg("ciphertext"),
-           py::arg("plaintext"))
-      .def("EvalAddInPlace",
-           static_cast<void (CryptoContextImpl<DCRTPoly>::*)(
-               Ciphertext<DCRTPoly> &, ConstCiphertext<DCRTPoly>) const>(
-               &CryptoContextImpl<DCRTPoly>::EvalAddInPlace),
-           cc_EvalAddInPlace_docs, py::arg("ciphertext1"),
-           py::arg("ciphertext2"))
-      .def("EvalAddInPlace",
-           static_cast<void (CryptoContextImpl<DCRTPoly>::*)(
-               Ciphertext<DCRTPoly> &, ConstPlaintext) const>(
-               &CryptoContextImpl<DCRTPoly>::EvalAddInPlace),
-           cc_EvalAddInPlacePlaintext_docs, py::arg("ciphertext"),
-           py::arg("plaintext"))
-      .def("EvalAddInPlace",
-           static_cast<void (CryptoContextImpl<DCRTPoly>::*)(
-               ConstPlaintext, Ciphertext<DCRTPoly> &) const>(
-               &CryptoContextImpl<DCRTPoly>::EvalAddInPlace),
-           "", py::arg("plaintext"), py::arg("ciphertext"))
-      .def("EvalAddMutable",
-           static_cast<Ciphertext<DCRTPoly> (CryptoContextImpl<DCRTPoly>::*)(
-               Ciphertext<DCRTPoly> &, Ciphertext<DCRTPoly> &) const>(
-               &CryptoContextImpl<DCRTPoly>::EvalAddMutable),
-           cc_EvalAddMutable_docs, py::arg("ciphertext1"),
-           py::arg("ciphertext2"))
-      .def("EvalAddMutable",
-           static_cast<Ciphertext<DCRTPoly> (CryptoContextImpl<DCRTPoly>::*)(
-               Ciphertext<DCRTPoly> &, Plaintext) const>(
-               &CryptoContextImpl<DCRTPoly>::EvalAddMutable),
-           cc_EvalAddMutablePlaintext_docs, py::arg("ciphertext"),
-           py::arg("plaintext"))
-      .def("EvalAddMutable",
-           static_cast<Ciphertext<DCRTPoly> (CryptoContextImpl<DCRTPoly>::*)(
-               Plaintext, Ciphertext<DCRTPoly> &) const>(
-               &CryptoContextImpl<DCRTPoly>::EvalAddMutable),
-           "", py::arg("plaintext"), py::arg("ciphertext"))
-      .def("EvalAddMutableInPlace",
-           &CryptoContextImpl<DCRTPoly>::EvalAddMutableInPlace,
-           cc_EvalAddMutableInPlace_docs, py::arg("ciphertext1"),
-           py::arg("ciphertext2"))
-      .def("EvalSub",
-           static_cast<Ciphertext<DCRTPoly> (CryptoContextImpl<DCRTPoly>::*)(
-               ConstCiphertext<DCRTPoly>, ConstCiphertext<DCRTPoly>) const>(
-               &CryptoContextImpl<DCRTPoly>::EvalSub),
-           cc_EvalSub_docs, py::arg("ciphertext1"), py::arg("ciphertext2"))
-      .def("EvalSub",
-           static_cast<Ciphertext<DCRTPoly> (CryptoContextImpl<DCRTPoly>::*)(
-               ConstCiphertext<DCRTPoly>, double) const>(
-               &CryptoContextImpl<DCRTPoly>::EvalSub),
-           cc_EvalSubfloat_docs, py::arg("ciphertext"), py::arg("constant"))
-      .def("EvalSub",
-           static_cast<Ciphertext<DCRTPoly> (CryptoContextImpl<DCRTPoly>::*)(
-               double, ConstCiphertext<DCRTPoly>) const>(
-               &CryptoContextImpl<DCRTPoly>::EvalSub),
-           "", py::arg("constant"), py::arg("ciphertext"))
-      .def("EvalSub",
-           static_cast<Ciphertext<DCRTPoly> (CryptoContextImpl<DCRTPoly>::*)(
-               ConstCiphertext<DCRTPoly>, ConstPlaintext) const>(
-               &CryptoContextImpl<DCRTPoly>::EvalSub),
-           cc_EvalSubPlaintext_docs, py::arg("ciphertext"),
-           py::arg("plaintext"))
-      .def("EvalSub",
-           static_cast<Ciphertext<DCRTPoly> (CryptoContextImpl<DCRTPoly>::*)(
-               ConstPlaintext, ConstCiphertext<DCRTPoly>) const>(
-               &CryptoContextImpl<DCRTPoly>::EvalSub),
-           "", py::arg("plaintext"), py::arg("ciphertext"))
-      .def("EvalSubInPlace",
-           static_cast<void (CryptoContextImpl<DCRTPoly>::*)(
-               Ciphertext<DCRTPoly> &, ConstCiphertext<DCRTPoly>) const>(
-               &CryptoContextImpl<DCRTPoly>::EvalSubInPlace),
-           cc_EvalSubInPlace_docs, py::arg("ciphertext1"),
-           py::arg("ciphertext2"))
-      .def("EvalSubInPlace",
-           static_cast<void (CryptoContextImpl<DCRTPoly>::*)(
-               Ciphertext<DCRTPoly> &, double) const>(
-               &CryptoContextImpl<DCRTPoly>::EvalSubInPlace),
-           cc_EvalSubInPlacefloat_docs, py::arg("ciphertext"),
-           py::arg("constant"))
-      .def("EvalSubInPlace",
-           static_cast<void (CryptoContextImpl<DCRTPoly>::*)(
-               double, Ciphertext<DCRTPoly> &) const>(
-               &CryptoContextImpl<DCRTPoly>::EvalSubInPlace),
-           "", py::arg("constant"), py::arg("ciphertext"))
-      .def("EvalSubMutable",
-           static_cast<Ciphertext<DCRTPoly> (CryptoContextImpl<DCRTPoly>::*)(
-               Ciphertext<DCRTPoly> &, Ciphertext<DCRTPoly> &) const>(
-               &CryptoContextImpl<DCRTPoly>::EvalSubMutable),
-           cc_EvalSubMutable_docs, py::arg("ciphertext1"),
-           py::arg("ciphertext2"))
-      .def("EvalSubMutable",
-           static_cast<Ciphertext<DCRTPoly> (CryptoContextImpl<DCRTPoly>::*)(
-               Ciphertext<DCRTPoly> &, Plaintext) const>(
-               &CryptoContextImpl<DCRTPoly>::EvalSubMutable),
-           cc_EvalSubMutablePlaintext_docs, py::arg("ciphertext"),
-           py::arg("plaintext"))
-      .def("EvalSubMutable",
-           static_cast<Ciphertext<DCRTPoly> (CryptoContextImpl<DCRTPoly>::*)(
-               Plaintext, Ciphertext<DCRTPoly> &) const>(
-               &CryptoContextImpl<DCRTPoly>::EvalSubMutable),
-           "", py::arg("plaintext"), py::arg("ciphertext"))
-      .def("EvalSubMutableInPlace",
-           &CryptoContextImpl<DCRTPoly>::EvalSubMutableInPlace,
-           cc_EvalSubMutableInPlace_docs, py::arg("ciphertext1"),
-           py::arg("ciphertext2"))
-      .def("EvalMult",
-           static_cast<Ciphertext<DCRTPoly> (CryptoContextImpl<DCRTPoly>::*)(
-               ConstCiphertext<DCRTPoly>, ConstCiphertext<DCRTPoly>) const>(
-               &CryptoContextImpl<DCRTPoly>::EvalMult),
-           cc_EvalMult_docs, py::arg("ciphertext1"), py::arg("ciphertext2"))
-      .def("EvalMult",
-           static_cast<Ciphertext<DCRTPoly> (CryptoContextImpl<DCRTPoly>::*)(
-               ConstCiphertext<DCRTPoly>, double) const>(
-               &CryptoContextImpl<DCRTPoly>::EvalMult),
-           cc_EvalMultfloat_docs, py::arg("ciphertext"), py::arg("constant"))
-      .def("EvalMult",
-           static_cast<Ciphertext<DCRTPoly> (CryptoContextImpl<DCRTPoly>::*)(
-               ConstCiphertext<DCRTPoly>, ConstPlaintext) const>(
-               &CryptoContextImpl<DCRTPoly>::EvalMult),
-           cc_EvalMultPlaintext_docs, py::arg("ciphertext"),
-           py::arg("plaintext"))
-      .def("EvalMult",
-           static_cast<Ciphertext<DCRTPoly> (CryptoContextImpl<DCRTPoly>::*)(
-               ConstPlaintext, ConstCiphertext<DCRTPoly>) const>(
-               &CryptoContextImpl<DCRTPoly>::EvalMult),
-           "", py::arg("plaintext"), py::arg("ciphertext"))
-      .def("EvalMult",
-           static_cast<Ciphertext<DCRTPoly> (CryptoContextImpl<DCRTPoly>::*)(
-               double, ConstCiphertext<DCRTPoly>) const>(
-               &CryptoContextImpl<DCRTPoly>::EvalMult),
-           "", py::arg("constant"), py::arg("ciphertext"))
-      .def("EvalMultMutable",
-           static_cast<Ciphertext<DCRTPoly> (CryptoContextImpl<DCRTPoly>::*)(
-               Ciphertext<DCRTPoly> &, Ciphertext<DCRTPoly> &) const>(
-               &CryptoContextImpl<DCRTPoly>::EvalMultMutable),
-           cc_EvalMultMutable_docs, py::arg("ciphertext1"),
-           py::arg("ciphertext2"))
-      .def("EvalMultMutable",
-           static_cast<Ciphertext<DCRTPoly> (CryptoContextImpl<DCRTPoly>::*)(
-               Ciphertext<DCRTPoly> &, Plaintext) const>(
-               &CryptoContextImpl<DCRTPoly>::EvalMultMutable),
-           cc_EvalMultMutablePlaintext_docs, py::arg("ciphertext"),
-           py::arg("plaintext"))
-      .def("EvalMultMutable",
-           static_cast<Ciphertext<DCRTPoly> (CryptoContextImpl<DCRTPoly>::*)(
-               Plaintext, Ciphertext<DCRTPoly> &) const>(
-               &CryptoContextImpl<DCRTPoly>::EvalMultMutable),
-           "", py::arg("plaintext"), py::arg("ciphertext"))
-      .def("EvalMultMutableInPlace",
-           &CryptoContextImpl<DCRTPoly>::EvalMultMutableInPlace,
-           cc_EvalMultMutableInPlace_docs, py::arg("ciphertext1"),
-           py::arg("ciphertext2"))
-      .def("EvalSquare", &CryptoContextImpl<DCRTPoly>::EvalSquare,
-           cc_EvalSquare_docs, py::arg("ciphertext"))
-      .def("EvalSquareMutable", &CryptoContextImpl<DCRTPoly>::EvalSquareMutable,
-           cc_EvalSquareMutable_docs, py::arg("ciphertext"))
-      .def("EvalSquareInPlace", &CryptoContextImpl<DCRTPoly>::EvalSquareInPlace,
-           cc_EvalSquareInPlace_docs, py::arg("ciphertext"))
-      .def("EvalMultNoRelin", &CryptoContextImpl<DCRTPoly>::EvalMultNoRelin,
-           cc_EvalMultNoRelin_docs, py::arg("ciphertext1"),
-           py::arg("ciphertext2"))
-      .def("Relinearize", &CryptoContextImpl<DCRTPoly>::Relinearize,
-           cc_Relinearize_docs, py::arg("ciphertext"))
-      .def("RelinearizeInPlace",
-           &CryptoContextImpl<DCRTPoly>::RelinearizeInPlace,
-           cc_RelinearizeInPlace_docs, py::arg("ciphertext"))
-      .def("EvalMultAndRelinearize",
-           &CryptoContextImpl<DCRTPoly>::EvalMultAndRelinearize,
-           cc_EvalMultAndRelinearize_docs, py::arg("ciphertext1"),
-           py::arg("ciphertext2"))
-      .def("EvalNegate", &CryptoContextImpl<DCRTPoly>::EvalNegate,
-           cc_EvalNegate_docs, py::arg("ciphertext"))
-      .def("EvalNegateInPlace", &CryptoContextImpl<DCRTPoly>::EvalNegateInPlace,
-           cc_EvalNegateInPlace_docs, py::arg("ciphertext"))
-      .def("EvalLogistic", &CryptoContextImpl<DCRTPoly>::EvalLogistic,
-           cc_EvalLogistic_docs, py::arg("ciphertext"), py::arg("a"),
-           py::arg("b"), py::arg("degree"))
-      .def("EvalChebyshevSeries",
-           &CryptoContextImpl<DCRTPoly>::EvalChebyshevSeries,
-           cc_EvalChebyshevSeries_docs, py::arg("ciphertext"),
-           py::arg("coefficients"), py::arg("a"), py::arg("b"))
-      .def("EvalChebyshevSeriesLinear",
-           &CryptoContextImpl<DCRTPoly>::EvalChebyshevSeriesLinear,
-           cc_EvalChebyshevSeriesLinear_docs, py::arg("ciphertext"),
-           py::arg("coefficients"), py::arg("a"), py::arg("b"))
-      .def("EvalChebyshevSeriesPS",
-           &CryptoContextImpl<DCRTPoly>::EvalChebyshevSeriesPS,
-           cc_EvalChebyshevSeriesPS_docs, py::arg("ciphertext"),
-           py::arg("coefficients"), py::arg("a"), py::arg("b"))
-      .def("EvalChebyshevFunction",
-           &CryptoContextImpl<DCRTPoly>::EvalChebyshevFunction,
-           cc_EvalChebyshevFunction_docs, py::arg("func"),
-           py::arg("ciphertext"), py::arg("a"), py::arg("b"), py::arg("degree"))
-      .def("EvalSin", &CryptoContextImpl<DCRTPoly>::EvalSin, cc_EvalSin_docs,
-           py::arg("ciphertext"), py::arg("a"), py::arg("b"), py::arg("degree"))
-      .def("EvalCos", &CryptoContextImpl<DCRTPoly>::EvalCos, cc_EvalCos_docs,
-           py::arg("ciphertext"), py::arg("a"), py::arg("b"), py::arg("degree"))
-      .def("EvalDivide", &CryptoContextImpl<DCRTPoly>::EvalDivide,
-           cc_EvalDivide_docs, py::arg("ciphertext"), py::arg("a"),
-           py::arg("b"), py::arg("degree"))
-      .def("EvalSumKeyGen", &CryptoContextImpl<DCRTPoly>::EvalSumKeyGen,
-           cc_EvalSumKeyGen_docs, py::arg("privateKey"),
-           py::arg("publicKey") = py::none())
-      // TODO (Oliveira, R.): Solve pointer handling bug when dealing with
-      // EvalKeyMap object for the next functions
-      .def("EvalSumRowsKeyGen", &CryptoContextImpl<DCRTPoly>::EvalSumRowsKeyGen,
-           cc_EvalSumRowsKeyGen_docs, py::arg("privateKey"),
-           py::arg("publicKey") = py::none(), py::arg("rowSize") = 0,
-           py::arg("subringDim") = 0)
-      .def("EvalSumColsKeyGen", &CryptoContextImpl<DCRTPoly>::EvalSumColsKeyGen,
-           cc_EvalSumColsKeyGen_docs, py::arg("privateKey"),
-           py::arg("publicKey") = py::none())
-      .def("EvalSum", &CryptoContextImpl<DCRTPoly>::EvalSum, cc_EvalSum_docs,
-           py::arg("ciphertext"), py::arg("batchSize"))
-      .def("EvalSumRows", &CryptoContextImpl<DCRTPoly>::EvalSumRows,
-           cc_EvalSumRows_docs, py::arg("ciphertext"), py::arg("rowSize"),
-           py::arg("evalSumKeyMap"), py::arg("subringDim") = 0)
-      .def("EvalSumCols", &CryptoContextImpl<DCRTPoly>::EvalSumCols,
-           cc_EvalSumCols_docs, py::arg("ciphertext"), py::arg("rowSize"),
-           py::arg("evalSumKeyMap"))
-      .def("EvalInnerProduct",
-           static_cast<Ciphertext<DCRTPoly> (CryptoContextImpl<DCRTPoly>::*)(
-               ConstCiphertext<DCRTPoly>, ConstCiphertext<DCRTPoly>,
-               usint) const>(&CryptoContextImpl<DCRTPoly>::EvalInnerProduct),
-           cc_EvalInnerProduct_docs, py::arg("ciphertext1"),
-           py::arg("ciphertext2"), py::arg("batchSize"))
-      .def("EvalInnerProduct",
-           static_cast<Ciphertext<DCRTPoly> (CryptoContextImpl<DCRTPoly>::*)(
-               ConstCiphertext<DCRTPoly>, ConstPlaintext, usint) const>(
-               &CryptoContextImpl<DCRTPoly>::EvalInnerProduct),
-           cc_EvalInnerProductPlaintext_docs, py::arg("ciphertext"),
-           py::arg("plaintext"), py::arg("batchSize"))
-      .def("MultipartyKeyGen",
-           static_cast<KeyPair<DCRTPoly> (CryptoContextImpl<DCRTPoly>::*)(
-               const PublicKey<DCRTPoly>, bool, bool)>(
-               &CryptoContextImpl<DCRTPoly>::MultipartyKeyGen),
-           cc_MultipartyKeyGen_docs, py::arg("publicKey"),
-           py::arg("makeSparse") = false, py::arg("fresh") = false)
-      .def("MultipartyKeyGen",
-           static_cast<KeyPair<DCRTPoly> (CryptoContextImpl<DCRTPoly>::*)(
-               const std::vector<PrivateKey<DCRTPoly>> &)>(
-               &CryptoContextImpl<DCRTPoly>::MultipartyKeyGen),
-           cc_MultipartyKeyGen_vector_docs, py::arg("privateKeyVec"))
-      .def("MultipartyDecryptLead",
-           &CryptoContextImpl<DCRTPoly>::MultipartyDecryptLead,
-           cc_MultipartyDecryptLead_docs, py::arg("ciphertextVec"),
-           py::arg("privateKey"))
-      .def("MultipartyDecryptMain",
-           &CryptoContextImpl<DCRTPoly>::MultipartyDecryptMain,
-           cc_MultipartyDecryptMain_docs, py::arg("ciphertextVec"),
-           py::arg("privateKey"))
-      .def("MultipartyDecryptFusion", &MultipartyDecryptFusionWrapper,
-           cc_MultipartyDecryptFusion_docs, py::arg("ciphertextVec"))
-      .def("MultiKeySwitchGen", &CryptoContextImpl<DCRTPoly>::MultiKeySwitchGen,
-           cc_MultiKeySwitchGen_docs, py::arg("originalPrivateKey"),
-           py::arg("newPrivateKey"), py::arg("evalKey"))
-      .def("MultiEvalSumKeyGen",
-           &CryptoContextImpl<DCRTPoly>::MultiEvalSumKeyGen,
-           cc_MultiEvalSumKeyGen_docs, py::arg("privateKey"),
-           py::arg("evalKeyMap"), py::arg("keyId") = "")
-      .def("MultiAddEvalKeys", &CryptoContextImpl<DCRTPoly>::MultiAddEvalKeys,
-           cc_MultiAddEvalKeys_docs, py::arg("evalKey1"), py::arg("evalKey2"),
-           py::arg("keyId") = "")
-      .def("MultiAddEvalMultKeys",
-           &CryptoContextImpl<DCRTPoly>::MultiAddEvalMultKeys,
-           cc_MultiAddEvalMultKeys_docs, py::arg("evalKey1"),
-           py::arg("evalKey2"), py::arg("keyId") = "")
-      .def("IntMPBootAdjustScale",
-           &CryptoContextImpl<DCRTPoly>::IntMPBootAdjustScale,
-           cc_IntMPBootAdjustScale_docs, py::arg("ciphertext"))
-      .def("IntMPBootRandomElementGen",
-           &CryptoContextImpl<DCRTPoly>::IntMPBootRandomElementGen,
-           cc_IntMPBootRandomElementGen_docs, py::arg("publicKey"))
-      .def("IntMPBootDecrypt", &CryptoContextImpl<DCRTPoly>::IntMPBootDecrypt,
-           cc_IntMPBootDecrypt_docs, py::arg("privateKey"),
-           py::arg("ciphertext"), py::arg("a"))
-      .def("IntMPBootAdd", &CryptoContextImpl<DCRTPoly>::IntMPBootAdd,
-           cc_IntMPBootAdd_docs, py::arg("sharePairVec"))
-      .def("IntMPBootEncrypt", &CryptoContextImpl<DCRTPoly>::IntMPBootEncrypt,
-           cc_IntMPBootEncrypt_docs, py::arg("publicKey"), py::arg("sharePair"),
-           py::arg("a"), py::arg("ciphertext"))
-      .def("MultiMultEvalKey", &CryptoContextImpl<DCRTPoly>::MultiMultEvalKey,
-           cc_MultiMultEvalKey_docs, py::arg("privateKey"), py::arg("evalKey"),
-           py::arg("keyId") = "")
-      .def("MultiAddEvalSumKeys",
-           &CryptoContextImpl<DCRTPoly>::MultiAddEvalSumKeys,
-           cc_MultiAddEvalSumKeys_docs, py::arg("evalKeyMap1"),
-           py::arg("evalKeyMap2"), py::arg("keyId") = "")
-      .def("EvalMerge", &CryptoContextImpl<DCRTPoly>::EvalMerge,
-           cc_EvalMerge_docs, py::arg("ciphertextVec"))
-      // use static_cast: inline EvalKey<Element> ReKeyGen(const
-      // PrivateKey<Element> oldPrivateKey, const PublicKey<Element>
-      // newPublicKey) const;
-      .def("ReKeyGen",
-           static_cast<EvalKey<DCRTPoly> (CryptoContextImpl<DCRTPoly>::*)(
-               const PrivateKey<DCRTPoly>, const PublicKey<DCRTPoly>) const>(
-               &CryptoContextImpl<DCRTPoly>::ReKeyGen),
-           cc_ReKeyGen_docs, py::arg("oldPrivateKey"), py::arg("newPublicKey"))
-      .def("ReEncrypt", &CryptoContextImpl<DCRTPoly>::ReEncrypt,
-           cc_ReEncrypt_docs, py::arg("ciphertext"), py::arg("evalKey"),
-           py::arg("publicKey") = nullptr)
-      .def("EvalPoly", &CryptoContextImpl<DCRTPoly>::EvalPoly, cc_EvalPoly_docs,
-           py::arg("ciphertext"), py::arg("coefficients"))
-      .def("EvalPolyLinear", &CryptoContextImpl<DCRTPoly>::EvalPolyLinear,
-           cc_EvalPolyLinear_docs, py::arg("ciphertext"),
-           py::arg("coefficients"))
-      .def("EvalPolyPS", &CryptoContextImpl<DCRTPoly>::EvalPolyPS,
-           cc_EvalPolyPS_docs, py::arg("ciphertext"), py::arg("coefficients"))
-      .def("Rescale", &CryptoContextImpl<DCRTPoly>::Rescale, cc_Rescale_docs,
-           py::arg("ciphertext"))
-      .def("RescaleInPlace", &CryptoContextImpl<DCRTPoly>::RescaleInPlace,
-           cc_RescaleInPlace_docs, py::arg("ciphertext"))
-      .def("ModReduce", &CryptoContextImpl<DCRTPoly>::ModReduce,
-           cc_ModReduce_docs, py::arg("ciphertext"))
-      .def("ModReduceInPlace", &CryptoContextImpl<DCRTPoly>::ModReduceInPlace,
-           cc_ModReduceInPlace_docs, py::arg("ciphertext"))
-      .def("EvalBootstrapSetup",
-           &CryptoContextImpl<DCRTPoly>::EvalBootstrapSetup,
-           cc_EvalBootstrapSetup_docs,
-           py::arg("levelBudget") = std::vector<uint32_t>({5, 4}),
-           py::arg("dim1") = std::vector<uint32_t>({0, 0}),
-           py::arg("slots") = 0, py::arg("correctionFactor") = 0,
-           py::arg("precompute") = true)
-      .def("EvalBootstrapKeyGen",
-           &CryptoContextImpl<DCRTPoly>::EvalBootstrapKeyGen,
-           cc_EvalBootstrapKeyGen_docs, py::arg("privateKey"), py::arg("slots"))
-      .def("EvalBootstrap", &CryptoContextImpl<DCRTPoly>::EvalBootstrap,
-           cc_EvalBootstrap_docs, py::arg("ciphertext"),
-           py::arg("numIterations") = 1, py::arg("precision") = 0)
-      .def("EvalCKKStoFHEWSetup",
-           &CryptoContextImpl<DCRTPoly>::EvalCKKStoFHEWSetup,
-           cc_EvalCKKStoFHEWSetup_docs, py::arg("schswchparams"))
-      .def("EvalCKKStoFHEWKeyGen",
-           &CryptoContextImpl<DCRTPoly>::EvalCKKStoFHEWKeyGen,
-           cc_EvalCKKStoFHEWKeyGen_docs, py::arg("keyPair"), py::arg("lwesk"))
-      .def("EvalCKKStoFHEWPrecompute",
-           &CryptoContextImpl<DCRTPoly>::EvalCKKStoFHEWPrecompute,
-           cc_EvalCKKStoFHEWPrecompute_docs, py::arg("scale") = 1.0)
-      .def("EvalCKKStoFHEW", &CryptoContextImpl<DCRTPoly>::EvalCKKStoFHEW,
-           cc_EvalCKKStoFHEW_docs, py::arg("ciphertext"),
-           py::arg("numCtxts") = 0)
-      .def("EvalFHEWtoCKKSSetup",
-           &CryptoContextImpl<DCRTPoly>::EvalFHEWtoCKKSSetup,
-           cc_EvalFHEWtoCKKSSetup_docs, py::arg("ccLWE"),
-           py::arg("numSlotsCKKS") = 0, py::arg("logQ") = 25)
-      .def("EvalFHEWtoCKKSKeyGen",
-           &CryptoContextImpl<DCRTPoly>::EvalFHEWtoCKKSKeyGen,
-           cc_EvalFHEWtoCKKSKeyGen_docs, py::arg("keyPair"), py::arg("lwesk"),
-           py::arg("numSlots") = 0, py::arg("numCtxts") = 0,
-           py::arg("dim1") = 0, py::arg("L") = 0)
-      .def("EvalFHEWtoCKKS", &CryptoContextImpl<DCRTPoly>::EvalFHEWtoCKKS,
-           cc_EvalFHEWtoCKKS_docs, py::arg("LWECiphertexts"),
-           py::arg("numCtxts") = 0, py::arg("numSlots") = 0, py::arg("p") = 4,
-           py::arg("pmin") = 0.0, py::arg("pmax") = 2.0, py::arg("dim1") = 0)
-      .def("EvalSchemeSwitchingSetup",
-           &CryptoContextImpl<DCRTPoly>::EvalSchemeSwitchingSetup,
-           cc_EvalSchemeSwitchingSetup_docs, py::arg("schswchparams"))
-      // void EvalSchemeSwitchingKeyGen(const KeyPair<Element> &keyPair,
-      // ConstLWEPrivateKey &lwesk, uint32_t numValues = 0, bool oneHot = true,
-      // bool alt = false, uint32_t dim1CF = 0, uint32_t dim1FC = 0, uint32_t
-      // LCF = 1, uint32_t LFC = 0)
-      .def("EvalSchemeSwitchingKeyGen",
-           &CryptoContextImpl<DCRTPoly>::EvalSchemeSwitchingKeyGen,
-           cc_EvalSchemeSwitchingKeyGen_docs, py::arg("keyPair"),
-           py::arg("lwesk"))
-      .def("EvalCompareSwitchPrecompute",
-           &CryptoContextImpl<DCRTPoly>::EvalCompareSwitchPrecompute,
-           cc_EvalCompareSwitchPrecompute_docs, py::arg("pLWE") = 0,
-           py::arg("scaleSign") = 1.0, py::arg("unit") = false)
-      .def("EvalCompareSchemeSwitching",
-           &CryptoContextImpl<DCRTPoly>::EvalCompareSchemeSwitching,
-           cc_EvalCompareSchemeSwitching_docs, py::arg("ciphertext1"),
-           py::arg("ciphertext2"), py::arg("numCtxts") = 0,
-           py::arg("numSlots") = 0, py::arg("pLWE") = 0,
-           py::arg("scaleSign") = 1.0, py::arg("unit") = false)
-      .def("EvalMinSchemeSwitching",
-           &CryptoContextImpl<DCRTPoly>::EvalMinSchemeSwitching,
-           cc_EvalMinSchemeSwitching_docs, py::arg("ciphertext"),
-           py::arg("publicKey"), py::arg("numValues") = 0,
-           py::arg("numSlots") = 0, py::arg("pLWE") = 0,
-           py::arg("scaleSign") = 1.0)
-      .def("EvalMinSchemeSwitchingAlt",
-           &CryptoContextImpl<DCRTPoly>::EvalMinSchemeSwitchingAlt,
-           cc_EvalMinSchemeSwitchingAlt_docs, py::arg("ciphertext"),
-           py::arg("publicKey"), py::arg("numValues") = 0,
-           py::arg("numSlots") = 0, py::arg("pLWE") = 0,
-           py::arg("scaleSign") = 1.0)
-      .def("EvalMaxSchemeSwitching",
-           &CryptoContextImpl<DCRTPoly>::EvalMaxSchemeSwitching,
-           cc_EvalMaxSchemeSwitching_docs, py::arg("ciphertext"),
-           py::arg("publicKey"), py::arg("numValues") = 0,
-           py::arg("numSlots") = 0, py::arg("pLWE") = 0,
-           py::arg("scaleSign") = 1.0)
-      .def("EvalMaxSchemeSwitchingAlt",
-           &CryptoContextImpl<DCRTPoly>::EvalMaxSchemeSwitchingAlt,
-           cc_EvalMaxSchemeSwitchingAlt_docs, py::arg("ciphertext"),
-           py::arg("publicKey"), py::arg("numValues") = 0,
-           py::arg("numSlots") = 0, py::arg("pLWE") = 0,
-           py::arg("scaleSign") = 1.0)
-      // TODO (Oliveira, R.): Solve pointer handling bug when returning
-      // EvalKeyMap objects for the next functions
-      .def("EvalAutomorphismKeyGen", &EvalAutomorphismKeyGenWrapper,
-           cc_EvalAutomorphismKeyGen_docs, py::arg("privateKey"),
-           py::arg("indexList"), py::return_value_policy::reference_internal)
-      .def("EvalLinearWSumMutable",
-           static_cast<lbcrypto::Ciphertext<DCRTPoly> (
-               lbcrypto::CryptoContextImpl<DCRTPoly>::*)(
-               const std::vector<double> &,
-               std::vector<std::shared_ptr<lbcrypto::CiphertextImpl<DCRTPoly>>>
-                   &) const>(
-               &CryptoContextImpl<DCRTPoly>::EvalLinearWSumMutable),
-           py::arg("ciphertext"), py::arg("coefficients"))
-      .def("EvalLinearWSum",
-           static_cast<lbcrypto::Ciphertext<DCRTPoly> (
-               lbcrypto::CryptoContextImpl<DCRTPoly>::*)(
-               std::vector<
-                   std::shared_ptr<const lbcrypto::CiphertextImpl<DCRTPoly>>> &,
-               const std::vector<double> &) const>(
-               &CryptoContextImpl<DCRTPoly>::EvalLinearWSum),
-           py::arg("ciphertext"), py::arg("coefficients"))
-      .def("EvalMultMany", &CryptoContextImpl<DCRTPoly>::EvalMultMany,
-           py::arg("ciphertextVec"))
-      .def("EvalAddManyInPlace",
-           &CryptoContextImpl<DCRTPoly>::EvalAddManyInPlace,
-           py::arg("ciphertextVec"))
-      .def("FindAutomorphismIndex",
-           &CryptoContextImpl<DCRTPoly>::FindAutomorphismIndex,
-           cc_FindAutomorphismIndex_docs, py::arg("idx"))
-      .def("FindAutomorphismIndices",
-           &CryptoContextImpl<DCRTPoly>::FindAutomorphismIndices,
-           cc_FindAutomorphismIndices_docs, py::arg("idxList"))
-      .def_static("InsertEvalSumKey",
-                  &CryptoContextImpl<DCRTPoly>::InsertEvalSumKey,
-                  cc_InsertEvalSumKey_docs, py::arg("evalKeyMap"),
-                  py::arg("keyTag") = "")
-      .def_static("InsertEvalMultKey",
-                  &CryptoContextImpl<DCRTPoly>::InsertEvalMultKey,
-                  cc_InsertEvalMultKey_docs, py::arg("evalKeyVec"),
-                  py::arg("keyTag") = "")
-      .def_static(
-          "ClearEvalAutomorphismKeys",
-          []() { CryptoContextImpl<DCRTPoly>::ClearEvalAutomorphismKeys(); },
-          cc_ClearEvalAutomorphismKeys_docs)
-      .def("GetEvalSumKeyMap", &GetEvalSumKeyMapWrapper,
-           cc_GetEvalSumKeyMap_docs, py::return_value_policy::reference)
-      .def("GetBinCCForSchemeSwitch",
-           &CryptoContextImpl<DCRTPoly>::GetBinCCForSchemeSwitch,
-           py::return_value_policy::reference_internal)
-      .def_static(
-          "SerializeEvalMultKey",
-          [](const std::string &filename, const SerType::SERBINARY &sertype,
-             std::string id = "") {
-            std::ofstream outfile(filename, std::ios::out | std::ios::binary);
-            bool res;
-            res = CryptoContextImpl<DCRTPoly>::SerializeEvalMultKey<
-                SerType::SERBINARY>(outfile, sertype, id);
-            outfile.close();
-            return res;
-          },
-          cc_SerializeEvalMultKey_docs, py::arg("filename"), py::arg("sertype"),
-          py::arg("id") = "")
-      .def_static( // SerializeEvalMultKey - JSON
-          "SerializeEvalMultKey",
-          [](const std::string &filename, const SerType::SERJSON &sertype,
-             std::string id = "") {
-            std::ofstream outfile(filename, std::ios::out | std::ios::binary);
-            bool res;
-            res = CryptoContextImpl<DCRTPoly>::SerializeEvalMultKey<
-                SerType::SERJSON>(outfile, sertype, id);
-            outfile.close();
-            return res;
-          },
-          cc_SerializeEvalMultKey_docs, py::arg("filename"), py::arg("sertype"),
-          py::arg("id") = "")
-      .def_static( // SerializeEvalAutomorphismKey - Binary
-          "SerializeEvalAutomorphismKey",
-          [](const std::string &filename, const SerType::SERBINARY &sertype,
-             std::string id = "") {
-            std::ofstream outfile(filename, std::ios::out | std::ios::binary);
-            bool res;
-            res = CryptoContextImpl<DCRTPoly>::SerializeEvalAutomorphismKey<
-                SerType::SERBINARY>(outfile, sertype, id);
-            outfile.close();
-            return res;
-          },
-          cc_SerializeEvalAutomorphismKey_docs, py::arg("filename"),
-          py::arg("sertype"), py::arg("id") = "")
-      .def_static( // SerializeEvalAutomorphismKey - JSON
-          "SerializeEvalAutomorphismKey",
-          [](const std::string &filename, const SerType::SERJSON &sertype,
-             std::string id = "") {
-            std::ofstream outfile(filename, std::ios::out | std::ios::binary);
-            bool res;
-            res = CryptoContextImpl<DCRTPoly>::SerializeEvalAutomorphismKey<
-                SerType::SERJSON>(outfile, sertype, id);
-            outfile.close();
-            return res;
-          },
-          cc_SerializeEvalAutomorphismKey_docs, py::arg("filename"),
-          py::arg("sertype"), py::arg("id") = "")
-      .def_static(
-          "DeserializeEvalMultKey", // DeserializeEvalMultKey - Binary
-          [](const std::string &filename, const SerType::SERBINARY &sertype) {
-            std::ifstream emkeys(filename, std::ios::in | std::ios::binary);
-            if (!emkeys.is_open()) {
-              std::cerr << "I cannot read serialization from " << filename
-                        << std::endl;
-            }
-            bool res;
-            res = CryptoContextImpl<DCRTPoly>::DeserializeEvalMultKey<
-                SerType::SERBINARY>(emkeys, sertype);
-            return res;
-          },
-          cc_DeserializeEvalMultKey_docs, py::arg("filename"),
-          py::arg("sertype"))
-      .def_static(
-          "DeserializeEvalMultKey", // DeserializeEvalMultKey - JSON
-          [](const std::string &filename, const SerType::SERJSON &sertype) {
-            std::ifstream emkeys(filename, std::ios::in | std::ios::binary);
-            if (!emkeys.is_open()) {
-              std::cerr << "I cannot read serialization from " << filename
-                        << std::endl;
-            }
-            bool res;
-            res = CryptoContextImpl<DCRTPoly>::DeserializeEvalMultKey<
-                SerType::SERJSON>(emkeys, sertype);
-            return res;
-          },
-          cc_DeserializeEvalMultKey_docs, py::arg("filename"),
-          py::arg("sertype"))
-      .def_static(
-          "DeserializeEvalAutomorphismKey", // DeserializeEvalAutomorphismKey -
-                                            // Binary
-          [](const std::string &filename, const SerType::SERBINARY &sertype) {
-            std::ifstream erkeys(filename, std::ios::in | std::ios::binary);
-            if (!erkeys.is_open()) {
-              std::cerr << "I cannot read serialization from " << filename
-                        << std::endl;
-            }
-            bool res;
-            res = CryptoContextImpl<DCRTPoly>::DeserializeEvalAutomorphismKey<
-                SerType::SERBINARY>(erkeys, sertype);
-            return res;
-          },
-          cc_DeserializeEvalAutomorphismKey_docs, py::arg("filename"),
-          py::arg("sertype"))
-      .def_static(
-          "DeserializeEvalAutomorphismKey", // DeserializeEvalAutomorphismKey -
-                                            // JSON
-          [](const std::string &filename, const SerType::SERJSON &sertype) {
-            std::ifstream erkeys(filename, std::ios::in | std::ios::binary);
-            if (!erkeys.is_open()) {
-              std::cerr << "I cannot read serialization from " << filename
-                        << std::endl;
-            }
-            bool res;
-            res = CryptoContextImpl<DCRTPoly>::DeserializeEvalAutomorphismKey<
-                SerType::SERJSON>(erkeys, sertype);
-            return res;
-          },
-          cc_DeserializeEvalAutomorphismKey_docs, py::arg("filename"),
-          py::arg("sertype"))
-      .def("GetPQ",
-           [](CryptoContext<DCRTPoly> cc) {
-             auto cryptoParams =
-                 std::dynamic_pointer_cast<CryptoParametersCKKSRNS>(
-                     cc->GetCryptoParameters());
-             auto paramsQP = cryptoParams->GetParamsQP()->GetParams();
-             auto paramsQ = cryptoParams->GetElementParams();
-             auto sizeQ = paramsQ->GetParams().size();
-             auto sizeQP = paramsQP.size();
-             auto sizeP = sizeQP - sizeQ;
+void bind_DCRTPoly(py::module &m)
+{
+     py::class_<DCRTPoly>(m, "DCRTPoly").def(py::init<>());
+}
 
-             std::vector<uint64_t> moduliQ;
-             std::vector<uint64_t> rootsQ;
-             std::vector<uint64_t> moduliP;
-             std::vector<uint64_t> rootsP;
-             for (size_t i = 0; i < sizeQ; i++) {
-               moduliQ.push_back(uint64_t(paramsQP[i]->GetModulus()));
-               rootsQ.push_back(uint64_t(paramsQP[i]->GetRootOfUnity()));
-             }
-             for (size_t i = sizeQ; i < sizeQP; i++) {
-               moduliP.push_back(uint64_t(paramsQP[i]->GetModulus()));
-               rootsP.push_back(uint64_t(paramsQP[i]->GetRootOfUnity()));
-             }
-             return std::make_tuple(moduliQ, rootsQ, moduliP, rootsP);
-           })
-      .def("GetEvalMultKey",
-           [](CryptoContext<DCRTPoly> cc) {
-             auto &multMap = cc->GetAllEvalMultKeys();
-             assert(multMap.size() == 1);
+template <typename T>
+void bind_parameters(py::module &m, const std::string name)
+{
+     py::class_<CCParams<T>>(m, name.c_str())
+         .def(py::init<>())
+         // getters
+         .def("GetPlaintextModulus", &CCParams<T>::GetPlaintextModulus)
+         .def("GetScheme", &CCParams<T>::GetScheme)
+         .def("GetDigitSize", &CCParams<T>::GetDigitSize)
+         .def("GetStandardDeviation", &CCParams<T>::GetStandardDeviation)
+         .def("GetSecretKeyDist", &CCParams<T>::GetSecretKeyDist)
+         .def("GetMaxRelinSkDeg", &CCParams<T>::GetMaxRelinSkDeg)
+         .def("GetPREMode", &CCParams<T>::GetPREMode)
+         .def("GetMultipartyMode", &CCParams<T>::GetMultipartyMode)
+         .def("GetExecutionMode", &CCParams<T>::GetExecutionMode)
+         .def("GetDecryptionNoiseMode", &CCParams<T>::GetDecryptionNoiseMode)
+         .def("GetNoiseEstimate", &CCParams<T>::GetNoiseEstimate)
+         .def("GetDesiredPrecision", &CCParams<T>::GetDesiredPrecision)
+         .def("GetStatisticalSecurity", &CCParams<T>::GetStatisticalSecurity)
+         .def("GetNumAdversarialQueries", &CCParams<T>::GetNumAdversarialQueries)
+         //.def("GetThresholdNumOfParties", &CCParams<T>::GetThresholdNumOfParties)
+         .def("GetKeySwitchTechnique", &CCParams<T>::GetKeySwitchTechnique)
+         .def("GetScalingTechnique", &CCParams<T>::GetScalingTechnique)
+         .def("GetBatchSize", &CCParams<T>::GetBatchSize)
+         .def("GetFirstModSize", &CCParams<T>::GetFirstModSize)
+         .def("GetNumLargeDigits", &CCParams<T>::GetNumLargeDigits)
+         .def("GetMultiplicativeDepth", &CCParams<T>::GetMultiplicativeDepth)
+         .def("GetScalingModSize", &CCParams<T>::GetScalingModSize)
+         .def("GetSecurityLevel", &CCParams<T>::GetSecurityLevel)
+         .def("GetRingDim", &CCParams<T>::GetRingDim)
+         .def("GetEvalAddCount", &CCParams<T>::GetEvalAddCount)
+         .def("GetKeySwitchCount", &CCParams<T>::GetKeySwitchCount)
+         .def("GetEncryptionTechnique", &CCParams<T>::GetEncryptionTechnique)
+         .def("GetMultiplicationTechnique", &CCParams<T>::GetMultiplicationTechnique)
+         .def("GetPRENumHops", &CCParams<T>::GetPRENumHops)
+         .def("GetInteractiveBootCompressionLevel", &CCParams<T>::GetInteractiveBootCompressionLevel)
+         .def("GetCompositeDegree", &CCParams<T>::GetCompositeDegree)
+         .def("GetRegisterWordSize", &CCParams<T>::GetRegisterWordSize)
+         .def("GetCKKSDataType", &CCParams<T>::GetCKKSDataType)
+         // setters
+         .def("SetPlaintextModulus", &CCParams<T>::SetPlaintextModulus)
+         .def("SetDigitSize", &CCParams<T>::SetDigitSize)
+         .def("SetStandardDeviation", &CCParams<T>::SetStandardDeviation)
+         .def("SetSecretKeyDist", &CCParams<T>::SetSecretKeyDist)
+         .def("SetMaxRelinSkDeg", &CCParams<T>::SetMaxRelinSkDeg)
+         .def("SetPREMode", &CCParams<T>::SetPREMode)
+         .def("SetMultipartyMode", &CCParams<T>::SetMultipartyMode)
+         .def("SetExecutionMode", &CCParams<T>::SetExecutionMode)
+         .def("SetDecryptionNoiseMode", &CCParams<T>::SetDecryptionNoiseMode)
+         .def("SetNoiseEstimate", &CCParams<T>::SetNoiseEstimate)
+         .def("SetDesiredPrecision", &CCParams<T>::SetDesiredPrecision)
+         .def("SetStatisticalSecurity", &CCParams<T>::SetStatisticalSecurity)
+         .def("SetNumAdversarialQueries", &CCParams<T>::SetNumAdversarialQueries)
+         .def("SetThresholdNumOfParties", &CCParams<T>::SetThresholdNumOfParties)
+         .def("SetKeySwitchTechnique", &CCParams<T>::SetKeySwitchTechnique)
+         .def("SetScalingTechnique", &CCParams<T>::SetScalingTechnique)
+         .def("SetBatchSize", &CCParams<T>::SetBatchSize)
+         .def("SetFirstModSize", &CCParams<T>::SetFirstModSize)
+         .def("SetNumLargeDigits", &CCParams<T>::SetNumLargeDigits)
+         .def("SetMultiplicativeDepth", &CCParams<T>::SetMultiplicativeDepth)
+         .def("SetScalingModSize", &CCParams<T>::SetScalingModSize)
+         .def("SetSecurityLevel", &CCParams<T>::SetSecurityLevel)
+         .def("SetRingDim", &CCParams<T>::SetRingDim)
+         .def("SetEvalAddCount", &CCParams<T>::SetEvalAddCount)
+         .def("SetKeySwitchCount", &CCParams<T>::SetKeySwitchCount)
+         .def("SetEncryptionTechnique", &CCParams<T>::SetEncryptionTechnique)
+         .def("SetMultiplicationTechnique", &CCParams<T>::SetMultiplicationTechnique)
+         .def("SetPRENumHops", &CCParams<T>::SetPRENumHops)
+         .def("SetInteractiveBootCompressionLevel", &CCParams<T>::SetInteractiveBootCompressionLevel)
+         .def("SetCompositeDegree", &CCParams<T>::SetCompositeDegree)
+         .def("SetRegisterWordSize", &CCParams<T>::SetRegisterWordSize)
+         .def("SetCKKSDataType", &CCParams<T>::SetCKKSDataType)
+         .def("__str__", [](const CCParams<T> &params)
+              {
+            std::stringstream stream;
+            stream << params;
+            return stream.str(); });
+}
 
-             auto &keyElementsB = multMap.begin()->second[0]->GetBVector();
-             auto &keyElementsA = multMap.begin()->second[0]->GetAVector();
+template <typename T>
+void bind_crypto_context_templates(py::class_<CryptoContextImpl<DCRTPoly>, std::shared_ptr<CryptoContextImpl<DCRTPoly>>> &cls)
+{
+     cls.def("EvalChebyshevSeries",
+             static_cast<Ciphertext<DCRTPoly> (CryptoContextImpl<DCRTPoly>::*)(
+                 ConstCiphertext<DCRTPoly> &,
+                 const std::vector<T> &,
+                 double,
+                 double) const>(&CryptoContextImpl<DCRTPoly>::EvalChebyshevSeries),
+             py::arg("ciphertext"),
+             py::arg("coefficients"),
+             py::arg("a"),
+             py::arg("b"),
+             py::doc(cc_EvalChebyshevSeries_docs))
+         .def("EvalChebyshevSeriesLinear",
+              static_cast<Ciphertext<DCRTPoly> (CryptoContextImpl<DCRTPoly>::*)(
+                  ConstCiphertext<DCRTPoly> &,
+                  const std::vector<T> &,
+                  double,
+                  double) const>(&CryptoContextImpl<DCRTPoly>::EvalChebyshevSeriesLinear),
+              py::arg("ciphertext"),
+              py::arg("coefficients"),
+              py::arg("a"),
+              py::arg("b"),
+              py::doc(cc_EvalChebyshevSeriesLinear_docs))
+         .def("EvalChebyshevSeriesPS",
+              static_cast<Ciphertext<DCRTPoly> (CryptoContextImpl<DCRTPoly>::*)(
+                  ConstCiphertext<DCRTPoly> &,
+                  const std::vector<T> &,
+                  double,
+                  double) const>(&CryptoContextImpl<DCRTPoly>::EvalChebyshevSeriesPS),
+              py::arg("ciphertext"),
+              py::arg("coefficients"),
+              py::arg("a"),
+              py::arg("b"),
+              py::doc(cc_EvalChebyshevSeriesPS_docs))
+         .def("EvalLinearWSum",
+              static_cast<Ciphertext<DCRTPoly> (CryptoContextImpl<DCRTPoly>::*)(
+                  std::vector<ReadOnlyCiphertext<DCRTPoly>> &,
+                  const std::vector<T> &) const>(&CryptoContextImpl<DCRTPoly>::EvalLinearWSum),
+              py::arg("ciphertextVec"),
+              py::arg("constantVec"),
+              py::doc("Evaluate a weighted sum of ciphertexts using scalar coefficients"))
+         .def("EvalLinearWSumMutable",
+              static_cast<Ciphertext<DCRTPoly> (CryptoContextImpl<DCRTPoly>::*)(
+                  const std::vector<T> &,
+                  std::vector<Ciphertext<DCRTPoly>> &) const>(&CryptoContextImpl<DCRTPoly>::EvalLinearWSumMutable),
+              py::arg("constantsVec"),
+              py::arg("ciphertextVec"),
+              py::doc("Evaluate a weighted sum (mutable version) with given coefficients"))
+         .def("EvalPoly",
+              static_cast<Ciphertext<DCRTPoly> (CryptoContextImpl<DCRTPoly>::*)(
+                  ConstCiphertext<DCRTPoly> &,
+                  const std::vector<T> &) const>(&CryptoContextImpl<DCRTPoly>::EvalPoly),
+              py::arg("ciphertext"),
+              py::arg("coefficients"),
+              py::doc(cc_EvalPoly_docs))
+         .def("EvalPolyLinear",
+              static_cast<Ciphertext<DCRTPoly> (CryptoContextImpl<DCRTPoly>::*)(
+                  ConstCiphertext<DCRTPoly> &,
+                  const std::vector<T> &) const>(&CryptoContextImpl<DCRTPoly>::EvalPolyLinear),
+              py::arg("ciphertext"),
+              py::arg("coefficients"),
+              py::doc(cc_EvalPolyLinear_docs))
+         .def("EvalPolyPS",
+              static_cast<Ciphertext<DCRTPoly> (CryptoContextImpl<DCRTPoly>::*)(
+                  ConstCiphertext<DCRTPoly> &,
+                  const std::vector<T> &) const>(&CryptoContextImpl<DCRTPoly>::EvalPolyPS),
+              py::arg("ciphertext"),
+              py::arg("coefficients"),
+              py::doc(cc_EvalPolyPS_docs));
+}
 
-             size_t totalBSize =
-                 keyElementsB.size() * keyElementsB[0].GetNumOfElements() *
-                 keyElementsB[0].GetElementAtIndex(0).GetValues().GetLength();
-             size_t totalASize =
-                 keyElementsA.size() * keyElementsA[0].GetNumOfElements() *
-                 keyElementsA[0].GetElementAtIndex(0).GetValues().GetLength();
+void bind_crypto_context(py::module &m)
+{
+     // Parameters Type
+     //  TODO (Oliveira): If we expose Poly's and ParmType, this block will go somewhere else
+     using ParmType = typename DCRTPoly::Params;
+     using ParmTypePtr = std::shared_ptr<ParmType>;
+     py::class_<ParmType, ParmTypePtr>(m, "ParmType");
 
-             py::array_t<uint64_t> vecMultKeyB(totalBSize);
-             py::array_t<uint64_t> vecMultKeyA(totalASize);
-             auto bufB = vecMultKeyB.request();
-             auto bufA = vecMultKeyA.request();
-             uint64_t *ptrB = static_cast<uint64_t *>(bufB.ptr);
-             uint64_t *ptrA = static_cast<uint64_t *>(bufA.ptr);
+     auto cc_class = py::class_<CryptoContextImpl<DCRTPoly>, std::shared_ptr<CryptoContextImpl<DCRTPoly>>>(m, "CryptoContext");
 
-             size_t cur_index = 0;
-             for (const auto &it : multMap) {
-               for (size_t i = 0; i < keyElementsB.size(); i++) {
-                 for (size_t j = 0; j < keyElementsB[i].GetNumOfElements();
-                      j++) {
-                   auto &valuesB =
-                       keyElementsB[i].GetElementAtIndex(j).GetValues();
-                   auto &valuesA =
-                       keyElementsA[i].GetElementAtIndex(j).GetValues();
-                   for (size_t k = 0; k < valuesB.GetLength(); k++) {
-                     ptrB[cur_index] = uint64_t(valuesB.at(k));
-                     ptrA[cur_index] = uint64_t(valuesA.at(k));
-                     cur_index++;
-                   }
-                 }
-               }
-             }
-             return std::make_tuple(vecMultKeyB, vecMultKeyA);
-           })
-      .def("GetEvalRotateKey",
-           [](CryptoContext<DCRTPoly> cc) {
-             std::vector<std::tuple<uint64_t, py::array_t<uint64_t>,
-                                    py::array_t<uint64_t>>>
-                 vecRotateKey;
-             auto evalAutomorphismKeyMap = cc->GetAllEvalAutomorphismKeys();
-             assert(evalAutomorphismKeyMap.size() == 1);
-             for (const auto &AutomorphismKey : evalAutomorphismKeyMap) {
-               for (const auto &it : (*AutomorphismKey.second)) {
-                 auto keyIndex = it.first;
-                 auto &keyElementsB = it.second->GetBVector();
-                 auto &keyElementsA = it.second->GetAVector();
-                 size_t total_size = keyElementsB.size() *
-                                     keyElementsB[0].GetNumOfElements() *
-                                     keyElementsB[0]
-                                         .GetElementAtIndex(0)
-                                         .GetValues()
-                                         .GetLength();
-                 py::array_t<uint64_t> vecAutomorphismKeyB(total_size);
-                 py::array_t<uint64_t> vecAutomorphismKeyA(total_size);
-                 auto bufB = vecAutomorphismKeyB.request();
-                 auto bufA = vecAutomorphismKeyA.request();
-                 uint64_t *ptrB = static_cast<uint64_t *>(bufB.ptr);
-                 uint64_t *ptrA = static_cast<uint64_t *>(bufA.ptr);
-                 size_t index = 0;
-                 for (size_t i = 0; i < keyElementsB.size(); i++) {
-                   for (size_t j = 0; j < keyElementsB[i].GetNumOfElements();
-                        j++) {
-                     auto &valuesB =
-                         keyElementsB[i].GetElementAtIndex(j).GetValues();
-                     auto &valuesA =
-                         keyElementsA[i].GetElementAtIndex(j).GetValues();
-                     for (size_t k = 0; k < valuesB.GetLength(); k++) {
-                       ptrB[index] = uint64_t(valuesB[k]);
-                       ptrA[index] = uint64_t(valuesA[k]);
-                       index++;
+     cc_class.def(py::init<>())
+         .def("GetKeyGenLevel", &CryptoContextImpl<DCRTPoly>::GetKeyGenLevel, cc_GetKeyGenLevel_docs)
+         .def("SetKeyGenLevel", &CryptoContextImpl<DCRTPoly>::SetKeyGenLevel,
+              py::arg("level"),
+              py::doc(cc_SetKeyGenLevel_docs))
+         .def("get_ptr", [](const CryptoContext<DCRTPoly> &self)
+              { std::cout << "CC shared ptr (python cc)" << self << std::endl; })
+         .def("GetRingDimension", &CryptoContextImpl<DCRTPoly>::GetRingDimension, cc_GetRingDimension_docs)
+         .def("GetPlaintextModulus", [](CryptoContext<DCRTPoly> &self)
+              { return self->GetCryptoParameters()->GetPlaintextModulus(); }, py::doc(cc_GetPlaintextModulus_docs))
+         .def("GetBatchSize", [](CryptoContext<DCRTPoly> &self)
+              { return self->GetCryptoParameters()->GetBatchSize(); })
+         .def("GetModulus", [](CryptoContext<DCRTPoly> &self)
+              { return self->GetCryptoParameters()
+                    ->GetElementParams()
+                    ->GetModulus()
+                    .ConvertToDouble(); }, py::doc(cc_GetModulus_docs))
+         .def("GetModulusCKKS", [](CryptoContext<DCRTPoly> &self)
+              {
+                auto cryptoParams = std::dynamic_pointer_cast<CryptoParametersCKKSRNS>(self->GetCryptoParameters());
+                if (!cryptoParams)
+                    OPENFHE_THROW("std::dynamic_pointer_cast<CryptoParametersCKKSRNS>() failed");
+                return cryptoParams->GetElementParams()->GetParams()[0]->GetModulus().ConvertToInt<uint64_t>(); })
+         .def("GetScalingFactorReal", [](CryptoContext<DCRTPoly> &self, uint32_t level)
+              {
+                auto cryptoParams = std::dynamic_pointer_cast<CryptoParametersRNS>(self->GetCryptoParameters());
+                if (!cryptoParams)
+                    OPENFHE_THROW("std::dynamic_pointer_cast<CryptoParametersRNS>() failed");
+                return cryptoParams->GetScalingFactorReal(level); }, py::arg("level"), py::doc(cc_GetScalingFactorReal_docs))
+         .def("GetScalingTechnique", [](CryptoContext<DCRTPoly> &self)
+              {
+                const auto cryptoParams = std::dynamic_pointer_cast<CryptoParametersRNS>(self->GetCryptoParameters());
+                if (!cryptoParams)
+                    OPENFHE_THROW("std::dynamic_pointer_cast<CryptoParametersRNS>() failed");
+                return cryptoParams->GetScalingTechnique(); })
+         .def("GetDigitSize", [](CryptoContext<DCRTPoly> &self)
+              { return self->GetCryptoParameters()->GetDigitSize(); })
+         .def("GetCyclotomicOrder", &CryptoContextImpl<DCRTPoly>::GetCyclotomicOrder, cc_GetCyclotomicOrder_docs)
+         .def("GetCKKSDataType", &CryptoContextImpl<DCRTPoly>::GetCKKSDataType)
+         .def("GetNoiseEstimate", [](CryptoContext<DCRTPoly> &self)
+              { return GetParamsRNSChecked(self, "GetNoiseEstimate")->GetNoiseEstimate(); })
+         .def("SetNoiseEstimate", [](CryptoContext<DCRTPoly> &self, double noiseEstimate)
+              { GetParamsRNSChecked(self, "SetNoiseEstimate")->SetNoiseEstimate(noiseEstimate); }, py::arg("noiseEstimate"))
+         .def("GetMultiplicativeDepth", [](CryptoContext<DCRTPoly> &self)
+              { return GetParamsRNSChecked(self, "GetMultiplicativeDepth")->GetMultiplicativeDepth(); })
+         .def("SetMultiplicativeDepth", [](CryptoContext<DCRTPoly> &self, uint32_t multiplicativeDepth)
+              { GetParamsRNSChecked(self, "SetMultiplicativeDepth")->SetMultiplicativeDepth(multiplicativeDepth); }, py::arg("multiplicativeDepth"))
+         .def("GetEvalAddCount", [](CryptoContext<DCRTPoly> &self)
+              { return GetParamsRNSChecked(self, "GetEvalAddCount")->GetEvalAddCount(); })
+         .def("SetEvalAddCount", [](CryptoContext<DCRTPoly> &self, uint32_t evalAddCount)
+              { GetParamsRNSChecked(self, "SetEvalAddCount")->SetEvalAddCount(evalAddCount); }, py::arg("evalAddCount"))
+         .def("GetKeySwitchCount", [](CryptoContext<DCRTPoly> &self)
+              { return GetParamsRNSChecked(self, "GetKeySwitchCount")->GetKeySwitchCount(); })
+         .def("SetKeySwitchCount", [](CryptoContext<DCRTPoly> &self, uint32_t keySwitchCount)
+              { GetParamsRNSChecked(self, "SetKeySwitchCount")->SetKeySwitchCount(keySwitchCount); }, py::arg("keySwitchCount"))
+         .def("GetPRENumHops", [](CryptoContext<DCRTPoly> &self)
+              { return GetParamsRNSChecked(self, "GetPRENumHops")->GetPRENumHops(); })
+         .def("SetPRENumHops", [](CryptoContext<DCRTPoly> &self, uint32_t PRENumHops)
+              { GetParamsRNSChecked(self, "SetPRENumHops")->SetPRENumHops(PRENumHops); }, py::arg("PRENumHops"))
+         .def("GetRegisterWordSize", [](CryptoContext<DCRTPoly> &self)
+              { return GetParamsRNSChecked(self, "GetRegisterWordSize")->GetRegisterWordSize(); })
+         .def("GetCompositeDegree", [](CryptoContext<DCRTPoly> &self)
+              { return GetParamsRNSChecked(self, "GetCompositeDegree")->GetCompositeDegree(); })
+         .def("GetKeySwitchTechnique", [](CryptoContext<DCRTPoly> &self)
+              { return GetParamsRNSChecked(self, "GetKeySwitchTechnique")->GetKeySwitchTechnique(); })
+         .def("Enable", py::overload_cast<PKESchemeFeature>(&CryptoContextImpl<DCRTPoly>::Enable), py::arg("feature"), py::doc(cc_Enable_docs))
+         .def("KeyGen", &CryptoContextImpl<DCRTPoly>::KeyGen, cc_KeyGen_docs)
+         .def("EvalMultKeyGen", &CryptoContextImpl<DCRTPoly>::EvalMultKeyGen, py::arg("privateKey"), py::doc(cc_EvalMultKeyGen_docs))
+         .def("EvalMultKeysGen", &CryptoContextImpl<DCRTPoly>::EvalMultKeysGen, py::arg("privateKey"), py::doc(cc_EvalMultKeysGen_docs))
+         .def("EvalRotateKeyGen", &CryptoContextImpl<DCRTPoly>::EvalRotateKeyGen, py::arg("privateKey"), py::arg("indexList"), py::arg("publicKey") = py::none(), py::doc(cc_EvalRotateKeyGen_docs))
+         .def("MakeStringPlaintext", &CryptoContextImpl<DCRTPoly>::MakeStringPlaintext, py::arg("str"), py::doc(cc_MakeStringPlaintext_docs))
+         .def("MakePackedPlaintext", &CryptoContextImpl<DCRTPoly>::MakePackedPlaintext, py::arg("value"), py::arg("noiseScaleDeg") = 1, py::arg("level") = 0, py::doc(cc_MakePackedPlaintext_docs))
+         .def("MakeCoefPackedPlaintext", &CryptoContextImpl<DCRTPoly>::MakeCoefPackedPlaintext, py::arg("value"), py::arg("noiseScaleDeg ") = 1, py::arg("level") = 0, py::doc(cc_MakeCoefPackedPlaintext_docs))
+         // TODO (Oliveira): allow user to specify different params values
+         .def("MakeCKKSPackedPlaintext", py::overload_cast<const std::vector<std::complex<double>> &, size_t, uint32_t, const std::shared_ptr<ParmType>, uint32_t>(&CryptoContextImpl<DCRTPoly>::MakeCKKSPackedPlaintext, py::const_), py::arg("value"), py::arg("noiseScaleDeg") = 1, py::arg("level") = 0, py::arg("params") = py::none(), py::arg("slots") = 0, py::doc(cc_MakeCKKSPackedPlaintextComplex_docs))
+         .def("MakeCKKSPackedPlaintext", py::overload_cast<const std::vector<double> &, size_t, uint32_t, const std::shared_ptr<ParmType>, uint32_t>(&CryptoContextImpl<DCRTPoly>::MakeCKKSPackedPlaintext, py::const_), py::arg("value"), py::arg("noiseScaleDeg") = 1, py::arg("level") = 0, py::arg("params") = py::none(), py::arg("slots") = 0, py::doc(cc_MakeCKKSPlaintextReal_docs))
+         .def("EvalRotate", &CryptoContextImpl<DCRTPoly>::EvalRotate, py::arg("ciphertext"), py::arg("index"), py::doc(cc_EvalRotate_docs))
+         .def("EvalFastRotationPrecompute", [](CryptoContext<DCRTPoly> &self, ConstCiphertext<DCRTPoly> ciphertext)
+              {
+                auto precomp = self->EvalFastRotationPrecompute(ciphertext);
+                auto cipherdigits = std::make_shared<CiphertextImpl<DCRTPoly>>(self);
+                cipherdigits->SetElements(*precomp);
+                return cipherdigits; }, py::arg("ciphertext"), py::doc(cc_EvalFastRotationPreCompute_docs))
+         .def("EvalFastRotation", [](CryptoContext<DCRTPoly> &self, ConstCiphertext<DCRTPoly> ciphertext, uint32_t index, uint32_t m, ConstCiphertext<DCRTPoly> digits)
+              { return self->EvalFastRotation(ciphertext, index, m, std::make_shared<std::vector<DCRTPoly>>(digits->GetElements())); }, py::arg("ciphertext"), py::arg("index"), py::arg("m"), py::arg("digits"), py::doc(cc_EvalFastRotation_docs))
+         .def("EvalFastRotationExt", [](CryptoContext<DCRTPoly> &self, ConstCiphertext<DCRTPoly> ciphertext, uint32_t index, ConstCiphertext<DCRTPoly> digits, bool addFirst)
+              { return self->EvalFastRotationExt(ciphertext, index, std::make_shared<std::vector<DCRTPoly>>(digits->GetElements()), addFirst); }, py::arg("ciphertext"), py::arg("index"), py::arg("digits"), py::arg("addFirst"), py::doc(cc_EvalFastRotationExt_docs))
+         .def("EvalAtIndexKeyGen", &CryptoContextImpl<DCRTPoly>::EvalAtIndexKeyGen, py::arg("privateKey"), py::arg("indexList"), py::arg("publicKey") = py::none(), py::doc(cc_EvalAtIndexKeyGen_docs))
+         .def("EvalAtIndex", &CryptoContextImpl<DCRTPoly>::EvalAtIndex, py::arg("ciphertext"), py::arg("index"), py::doc(cc_EvalAtIndex_docs))
+         .def("Encrypt", py::overload_cast<const PublicKey<DCRTPoly> &, ConstPlaintext &>(&CryptoContextImpl<DCRTPoly>::Encrypt, py::const_), py::arg("publicKey"), py::arg("plaintext"), py::doc(cc_Encrypt_docs))
+         .def("Decrypt", [](CryptoContext<DCRTPoly> &self, const PrivateKey<DCRTPoly> privKey, ConstCiphertext<DCRTPoly> ct)
+              {
+                Plaintext result;
+                self->Decrypt(privKey, ct, &result);
+                return result; }, py::arg("privateKey"), py::arg("ciphertext"), py::doc(cc_Decrypt_docs))
+         .def("Decrypt", [](CryptoContext<DCRTPoly> &self, ConstCiphertext<DCRTPoly> ct, const PrivateKey<DCRTPoly> privKey)
+              {
+                Plaintext result;
+                self->Decrypt(privKey, ct, &result);
+                return result; }, py::arg("ciphertext"), py::arg("privateKey"), py::doc(cc_Decrypt_docs))
+         .def("KeySwitchGen", &CryptoContextImpl<DCRTPoly>::KeySwitchGen, py::arg("oldPrivateKey"), py::arg("newPrivateKey"), py::doc(cc_KeySwitchGen_docs))
+         .def("EvalAdd", py::overload_cast<ConstCiphertext<DCRTPoly> &, ConstCiphertext<DCRTPoly> &>(&CryptoContextImpl<DCRTPoly>::EvalAdd, py::const_), py::arg("ciphertext1"), py::arg("ciphertext2"), py::doc(cc_EvalAdd_docs))
+         .def("EvalAdd", py::overload_cast<ConstCiphertext<DCRTPoly> &, double>(&CryptoContextImpl<DCRTPoly>::EvalAdd, py::const_), py::arg("ciphertext"), py::arg("scalar"), py::doc(cc_EvalAddfloat_docs))
+         .def("EvalAdd", py::overload_cast<ConstCiphertext<DCRTPoly> &, Plaintext &>(&CryptoContextImpl<DCRTPoly>::EvalAdd, py::const_), py::arg("ciphertext"), py::arg("plaintext"), py::doc(cc_EvalAddPlaintext_docs))
+         .def("EvalAddInPlace", py::overload_cast<Ciphertext<DCRTPoly> &, ConstCiphertext<DCRTPoly> &>(&CryptoContextImpl<DCRTPoly>::EvalAddInPlace, py::const_), py::arg("ciphertext1"), py::arg("ciphertext2"), py::doc(cc_EvalAddInPlace_docs))
+         .def("EvalAddInPlace", py::overload_cast<Ciphertext<DCRTPoly> &, Plaintext &>(&CryptoContextImpl<DCRTPoly>::EvalAddInPlace, py::const_), py::arg("ciphertext"), py::arg("plaintext"), py::doc(cc_EvalAddInPlacePlaintext_docs))
+         .def("EvalAddInPlace", py::overload_cast<Plaintext &, Ciphertext<DCRTPoly> &>(&CryptoContextImpl<DCRTPoly>::EvalAddInPlace, py::const_), py::arg("plaintext"), py::arg("ciphertext"),
+              py::doc("")) // TODO (dsuponit): replace this with an actual docstring
+         .def("EvalAddInPlace", py::overload_cast<Ciphertext<DCRTPoly> &, double>(&CryptoContextImpl<DCRTPoly>::EvalAddInPlace, py::const_), py::arg("ciphertext"), py::arg("scalar"),
+              py::doc("")) // TODO (dsuponit): replace this with an actual docstring
+         .def("EvalAddInPlace", py::overload_cast<double, Ciphertext<DCRTPoly> &>(&CryptoContextImpl<DCRTPoly>::EvalAddInPlace, py::const_), py::arg("scalar"), py::arg("ciphertext"),
+              py::doc("")) // TODO (dsuponit): replace this with an actual docstring
+         .def("EvalAddMutable", py::overload_cast<Ciphertext<DCRTPoly> &, Ciphertext<DCRTPoly> &>(&CryptoContextImpl<DCRTPoly>::EvalAddMutable, py::const_), py::arg("ciphertext1"), py::arg("ciphertext2"), py::doc(cc_EvalAddMutable_docs))
+         .def("EvalAddMutable", py::overload_cast<Ciphertext<DCRTPoly> &, Plaintext &>(&CryptoContextImpl<DCRTPoly>::EvalAddMutable, py::const_), py::arg("ciphertext"), py::arg("plaintext"), py::doc(cc_EvalAddMutablePlaintext_docs))
+         .def("EvalAddMutable", py::overload_cast<Plaintext &, Ciphertext<DCRTPoly> &>(&CryptoContextImpl<DCRTPoly>::EvalAddMutable, py::const_), py::arg("plaintext"), py::arg("ciphertext"),
+              py::doc("")) // TODO (dsuponit): replace this with an actual docstring
+         .def("EvalAddMutableInPlace", &CryptoContextImpl<DCRTPoly>::EvalAddMutableInPlace, py::arg("ciphertext1"), py::arg("ciphertext2"), py::doc(cc_EvalAddMutableInPlace_docs))
+         .def("EvalSub", py::overload_cast<ConstCiphertext<DCRTPoly> &, ConstCiphertext<DCRTPoly> &>(&CryptoContextImpl<DCRTPoly>::EvalSub, py::const_), py::arg("ciphertext1"), py::arg("ciphertext2"), py::doc(cc_EvalSub_docs))
+         .def("EvalSub", py::overload_cast<ConstCiphertext<DCRTPoly> &, double>(&CryptoContextImpl<DCRTPoly>::EvalSub, py::const_), py::arg("ciphertext"), py::arg("scalar"), py::doc(cc_EvalSubfloat_docs))
+         .def("EvalSub", py::overload_cast<double, ConstCiphertext<DCRTPoly> &>(&CryptoContextImpl<DCRTPoly>::EvalSub, py::const_), py::arg("scalar"), py::arg("ciphertext"),
+              py::doc("")) // TODO (dsuponit): replace this with an actual docstring
+         .def("EvalSub", py::overload_cast<ConstCiphertext<DCRTPoly> &, Plaintext &>(&CryptoContextImpl<DCRTPoly>::EvalSub, py::const_), py::arg("ciphertext"), py::arg("plaintext"), py::doc(cc_EvalSubPlaintext_docs))
+         .def("EvalSub", py::overload_cast<Plaintext &, ConstCiphertext<DCRTPoly> &>(&CryptoContextImpl<DCRTPoly>::EvalSub, py::const_), py::arg("plaintext"), py::arg("ciphertext"),
+              py::doc("")) // TODO (dsuponit): replace this with an actual docstring
+         .def("EvalSubInPlace", py::overload_cast<Ciphertext<DCRTPoly> &, ConstCiphertext<DCRTPoly> &>(&CryptoContextImpl<DCRTPoly>::EvalSubInPlace, py::const_), py::arg("ciphertext1"), py::arg("ciphertext2"), py::doc(cc_EvalSubInPlace_docs))
+         .def("EvalSubInPlace", py::overload_cast<Ciphertext<DCRTPoly> &, double>(&CryptoContextImpl<DCRTPoly>::EvalSubInPlace, py::const_), py::arg("ciphertext"), py::arg("scalar"), py::doc(cc_EvalSubInPlacefloat_docs))
+         .def("EvalSubInPlace", py::overload_cast<double, Ciphertext<DCRTPoly> &>(&CryptoContextImpl<DCRTPoly>::EvalSubInPlace, py::const_), py::arg("scalar"), py::arg("ciphertext"),
+              py::doc("")) // TODO (dsuponit): replace this with an actual docstring
+         .def("EvalSubInPlace", py::overload_cast<Ciphertext<DCRTPoly> &, ConstPlaintext &>(&CryptoContextImpl<DCRTPoly>::EvalSubInPlace, py::const_), py::arg("ciphertext"), py::arg("plaintext"),
+              py::doc("")) // TODO (dsuponit): replace this with an actual docstring
+         .def("EvalSubInPlace", py::overload_cast<Plaintext &, Ciphertext<DCRTPoly> &>(&CryptoContextImpl<DCRTPoly>::EvalSubInPlace, py::const_), py::arg("plaintext"), py::arg("ciphertext"),
+              py::doc("")) // TODO (dsuponit): replace this with an actual docstring
+         .def("EvalSubMutable", py::overload_cast<Ciphertext<DCRTPoly> &, Ciphertext<DCRTPoly> &>(&CryptoContextImpl<DCRTPoly>::EvalSubMutable, py::const_), py::arg("ciphertext1"), py::arg("ciphertext2"), py::doc(cc_EvalSubMutable_docs))
+         .def("EvalSubMutable", py::overload_cast<Ciphertext<DCRTPoly> &, Plaintext &>(&CryptoContextImpl<DCRTPoly>::EvalSubMutable, py::const_), py::arg("ciphertext"), py::arg("plaintext"), py::doc(cc_EvalSubMutablePlaintext_docs))
+         .def("EvalSubMutable", py::overload_cast<Plaintext &, Ciphertext<DCRTPoly> &>(&CryptoContextImpl<DCRTPoly>::EvalSubMutable, py::const_), py::arg("plaintext"), py::arg("ciphertext"),
+              py::doc("")) // TODO (dsuponit): replace this with an actual docstring
+         .def("EvalSubMutableInPlace", &CryptoContextImpl<DCRTPoly>::EvalSubMutableInPlace, py::arg("ciphertext1"), py::arg("ciphertext2"), py::doc(cc_EvalSubMutableInPlace_docs))
+         .def("EvalMult", py::overload_cast<ConstCiphertext<DCRTPoly> &, ConstCiphertext<DCRTPoly> &>(&CryptoContextImpl<DCRTPoly>::EvalMult, py::const_), py::arg("ciphertext1"), py::arg("ciphertext2"), py::doc(cc_EvalMult_docs))
+         .def("EvalMult", py::overload_cast<ConstCiphertext<DCRTPoly> &, double>(&CryptoContextImpl<DCRTPoly>::EvalMult, py::const_), py::arg("ciphertext"), py::arg("scalar"), py::doc(cc_EvalMultfloat_docs))
+         .def("EvalMult", py::overload_cast<ConstCiphertext<DCRTPoly> &, ConstPlaintext &>(&CryptoContextImpl<DCRTPoly>::EvalMult, py::const_), py::arg("ciphertext"), py::arg("plaintext"), py::doc(cc_EvalMultPlaintext_docs))
+         .def("EvalMult", py::overload_cast<ConstPlaintext &, ConstCiphertext<DCRTPoly> &>(&CryptoContextImpl<DCRTPoly>::EvalMult, py::const_), py::arg("plaintext"), py::arg("ciphertext"),
+              py::doc("")) // TODO (dsuponit): replace this with an actual docstring
+         .def("EvalMult", py::overload_cast<double, ConstCiphertext<DCRTPoly> &>(&CryptoContextImpl<DCRTPoly>::EvalMult, py::const_), py::arg("scalar"), py::arg("ciphertext"),
+              py::doc("")) // TODO (dsuponit): replace this with an actual docstring
+         .def("EvalMultMutable", py::overload_cast<Ciphertext<DCRTPoly> &, Ciphertext<DCRTPoly> &>(&CryptoContextImpl<DCRTPoly>::EvalMultMutable, py::const_), py::arg("ciphertext1"), py::arg("ciphertext2"), py::doc(cc_EvalMultMutable_docs))
+         .def("EvalMultMutable", py::overload_cast<Ciphertext<DCRTPoly> &, Plaintext &>(&CryptoContextImpl<DCRTPoly>::EvalMultMutable, py::const_), py::arg("ciphertext"), py::arg("plaintext"), py::doc(cc_EvalMultMutablePlaintext_docs))
+         .def("EvalMultMutable", py::overload_cast<Plaintext &, Ciphertext<DCRTPoly> &>(&CryptoContextImpl<DCRTPoly>::EvalMultMutable, py::const_), py::arg("plaintext"), py::arg("ciphertext"),
+              py::doc("")) // TODO (dsuponit): replace this with an actual docstring
+         .def("EvalMultMutableInPlace", &CryptoContextImpl<DCRTPoly>::EvalMultMutableInPlace, py::arg("ciphertext1"), py::arg("ciphertext2"), py::doc(cc_EvalMultMutableInPlace_docs))
+         .def("EvalSquare", &CryptoContextImpl<DCRTPoly>::EvalSquare, py::arg("ciphertext"), py::doc(cc_EvalSquare_docs))
+         .def("EvalSquareMutable", &CryptoContextImpl<DCRTPoly>::EvalSquareMutable, py::arg("ciphertext"), py::doc(cc_EvalSquareMutable_docs))
+         .def("EvalSquareInPlace", &CryptoContextImpl<DCRTPoly>::EvalSquareInPlace, py::arg("ciphertext"), py::doc(cc_EvalSquareInPlace_docs))
+         .def("EvalMultNoRelin", &CryptoContextImpl<DCRTPoly>::EvalMultNoRelin, py::arg("ciphertext1"), py::arg("ciphertext2"), py::doc(cc_EvalMultNoRelin_docs))
+         .def("Relinearize", &CryptoContextImpl<DCRTPoly>::Relinearize, py::arg("ciphertext"), py::doc(cc_Relinearize_docs))
+         .def("RelinearizeInPlace", &CryptoContextImpl<DCRTPoly>::RelinearizeInPlace, py::arg("ciphertext"), py::doc(cc_RelinearizeInPlace_docs))
+         .def("EvalMultAndRelinearize", &CryptoContextImpl<DCRTPoly>::EvalMultAndRelinearize, py::arg("ciphertext1"), py::arg("ciphertext2"), py::doc(cc_EvalMultAndRelinearize_docs))
+         .def("EvalNegate", &CryptoContextImpl<DCRTPoly>::EvalNegate, py::arg("ciphertext"), py::doc(cc_EvalNegate_docs))
+         .def("EvalNegateInPlace", &CryptoContextImpl<DCRTPoly>::EvalNegateInPlace, py::arg("ciphertext"), py::doc(cc_EvalNegateInPlace_docs))
+         .def("EvalLogistic", &CryptoContextImpl<DCRTPoly>::EvalLogistic, py::arg("ciphertext"), py::arg("a"), py::arg("b"), py::arg("degree"), py::doc(cc_EvalLogistic_docs))
+         .def("EvalChebyshevFunction", &CryptoContextImpl<DCRTPoly>::EvalChebyshevFunction, py::arg("func"), py::arg("ciphertext"), py::arg("a"), py::arg("b"), py::arg("degree"), py::doc(cc_EvalChebyshevFunction_docs))
+         .def("EvalSin", &CryptoContextImpl<DCRTPoly>::EvalSin, py::arg("ciphertext"), py::arg("a"), py::arg("b"), py::arg("degree"), py::doc(cc_EvalSin_docs))
+         .def("EvalCos", &CryptoContextImpl<DCRTPoly>::EvalCos, py::arg("ciphertext"), py::arg("a"), py::arg("b"), py::arg("degree"), py::doc(cc_EvalCos_docs))
+         .def("EvalDivide", &CryptoContextImpl<DCRTPoly>::EvalDivide, py::arg("ciphertext"), py::arg("a"), py::arg("b"), py::arg("degree"), py::doc(cc_EvalDivide_docs))
+         .def("EvalSumKeyGen", &CryptoContextImpl<DCRTPoly>::EvalSumKeyGen, py::arg("privateKey"), py::arg("publicKey") = py::none(), py::doc(cc_EvalSumKeyGen_docs))
+         // TODO (Oliveira, R.): Solve pointer handling bug when dealing with EvalKeyMap object for the next functions
+         .def("EvalSumRowsKeyGen", &CryptoContextImpl<DCRTPoly>::EvalSumRowsKeyGen, py::arg("privateKey"), py::arg("publicKey") = py::none(), py::arg("rowSize") = 0, py::arg("subringDim") = 0, py::doc(cc_EvalSumRowsKeyGen_docs))
+         .def("EvalSumColsKeyGen", &CryptoContextImpl<DCRTPoly>::EvalSumColsKeyGen, py::arg("privateKey"), py::arg("publicKey") = py::none(), py::doc(cc_EvalSumColsKeyGen_docs))
+         .def("EvalSum", &CryptoContextImpl<DCRTPoly>::EvalSum, py::arg("ciphertext"), py::arg("batchSize"), py::doc(cc_EvalSum_docs))
+         .def("EvalSumRows", &CryptoContextImpl<DCRTPoly>::EvalSumRows, py::arg("ciphertext"), py::arg("numRows"), py::arg("evalSumKeyMap"), py::arg("subringDim") = 0, py::doc(cc_EvalSumRows_docs))
+         .def("EvalSumCols", &CryptoContextImpl<DCRTPoly>::EvalSumCols, py::arg("ciphertext"), py::arg("numCols"), py::arg("evalSumKeyMap"), py::doc(cc_EvalSumCols_docs))
+         .def("EvalInnerProduct", py::overload_cast<ConstCiphertext<DCRTPoly> &, ConstCiphertext<DCRTPoly> &, uint32_t>(&CryptoContextImpl<DCRTPoly>::EvalInnerProduct, py::const_), py::arg("ciphertext1"), py::arg("ciphertext2"), py::arg("batchSize"), py::doc(cc_EvalInnerProduct_docs))
+         .def("EvalInnerProduct", py::overload_cast<ConstCiphertext<DCRTPoly> &, ConstPlaintext &, uint32_t>(&CryptoContextImpl<DCRTPoly>::EvalInnerProduct, py::const_), py::arg("ciphertext"), py::arg("plaintext"), py::arg("batchSize"), py::doc(cc_EvalInnerProductPlaintext_docs))
+         .def("MultipartyKeyGen", py::overload_cast<PublicKey<DCRTPoly>, bool, bool>(&CryptoContextImpl<DCRTPoly>::MultipartyKeyGen), py::arg("publicKey"), py::arg("makeSparse") = false, py::arg("fresh") = false, py::doc(cc_MultipartyKeyGen_docs))
+         .def("MultipartyKeyGen", py::overload_cast<const std::vector<PrivateKey<DCRTPoly>> &>(&CryptoContextImpl<DCRTPoly>::MultipartyKeyGen), py::arg("privateKeyVec"), py::doc(cc_MultipartyKeyGen_vector_docs))
+         .def("MultipartyDecryptLead", &CryptoContextImpl<DCRTPoly>::MultipartyDecryptLead, py::arg("ciphertextVec"), py::arg("privateKey"), py::doc(cc_MultipartyDecryptLead_docs))
+         .def("MultipartyDecryptMain", &CryptoContextImpl<DCRTPoly>::MultipartyDecryptMain, py::arg("ciphertextVec"), py::arg("privateKey"), py::doc(cc_MultipartyDecryptMain_docs))
+         .def("MultipartyDecryptFusion", [](CryptoContext<DCRTPoly> &self, const std::vector<Ciphertext<DCRTPoly>> &partialCiphertextVec)
+              {
+                Plaintext result;
+                self->MultipartyDecryptFusion(partialCiphertextVec, &result);
+                return result; }, py::arg("partialCiphertextVec"), py::doc(cc_MultipartyDecryptFusion_docs))
+         .def("MultiKeySwitchGen", &CryptoContextImpl<DCRTPoly>::MultiKeySwitchGen, py::arg("originalPrivateKey"), py::arg("newPrivateKey"), py::arg("evalKey"), py::doc(cc_MultiKeySwitchGen_docs))
+         .def("MultiEvalAtIndexKeyGen", [](CryptoContextImpl<DCRTPoly> *self, const PrivateKey<DCRTPoly> &privateKey, std::shared_ptr<std::map<unsigned int, EvalKey<DCRTPoly>>> evalKeyMap, const std::vector<int32_t> &indexList, const std::string &keyTag = "")
+              { return self->MultiEvalAtIndexKeyGen(privateKey, evalKeyMap, indexList, keyTag); }, py::arg("privateKey"), py::arg("evalKeyMap"), py::arg("indexList"), py::arg("keyTag") = "", py::doc(cc_MultiEvalAtIndexKeyGen_docs))
+         .def("MultiEvalSumKeyGen", &CryptoContextImpl<DCRTPoly>::MultiEvalSumKeyGen, py::arg("privateKey"), py::arg("evalKeyMap"), py::arg("keyTag") = "", py::doc(cc_MultiEvalSumKeyGen_docs))
+         .def("MultiAddEvalAutomorphismKeys", &CryptoContextImpl<DCRTPoly>::MultiAddEvalAutomorphismKeys, py::arg("evalKeyMap1"), py::arg("evalKeyMap2"), py::arg("keyTag") = "", py::doc(cc_MultiAddEvalAutomorphismKeys_docs))
+         .def("MultiAddPubKeys", &CryptoContextImpl<DCRTPoly>::MultiAddPubKeys, py::arg("publicKey1"), py::arg("publicKey2"), py::arg("keyTag") = "", py::doc(cc_MultiAddPubKeys_docs))
+         .def("MultiAddEvalKeys", &CryptoContextImpl<DCRTPoly>::MultiAddEvalKeys, py::arg("evalKey1"), py::arg("evalKey2"), py::arg("keyTag") = "", py::doc(cc_MultiAddEvalKeys_docs))
+         .def("MultiAddEvalMultKeys", &CryptoContextImpl<DCRTPoly>::MultiAddEvalMultKeys, py::arg("evalKey1"), py::arg("evalKey2"), py::arg("keyTag") = "", py::doc(cc_MultiAddEvalMultKeys_docs))
+         .def("IntBootDecrypt", &CryptoContextImpl<DCRTPoly>::IntBootDecrypt, py::arg("privateKey"), py::arg("ciphertext"), py::doc(cc_IntBootDecrypt_docs))
+         .def("IntBootEncrypt", &CryptoContextImpl<DCRTPoly>::IntBootEncrypt, py::arg("publicKey"), py::arg("ciphertext"), py::doc(cc_IntBootEncrypt_docs))
+         .def("IntBootAdd", &CryptoContextImpl<DCRTPoly>::IntBootAdd, py::arg("ciphertext1"), py::arg("ciphertext2"), py::doc(cc_IntBootAdd_docs))
+         .def("IntBootAdjustScale", &CryptoContextImpl<DCRTPoly>::IntBootAdjustScale, py::arg("ciphertext"), py::doc(cc_IntBootAdjustScale_docs))
+         .def("IntMPBootAdjustScale", &CryptoContextImpl<DCRTPoly>::IntMPBootAdjustScale, py::arg("ciphertext"), py::doc(cc_IntMPBootAdjustScale_docs))
+         .def("IntMPBootRandomElementGen", &CryptoContextImpl<DCRTPoly>::IntMPBootRandomElementGen, py::arg("publicKey"), py::doc(cc_IntMPBootRandomElementGen_docs))
+         .def("IntMPBootDecrypt", &CryptoContextImpl<DCRTPoly>::IntMPBootDecrypt, py::arg("privateKey"), py::arg("ciphertext"), py::arg("a"), py::doc(cc_IntMPBootDecrypt_docs))
+         .def("IntMPBootAdd", &CryptoContextImpl<DCRTPoly>::IntMPBootAdd, py::arg("sharePairVec"), py::doc(cc_IntMPBootAdd_docs))
+         .def("IntMPBootEncrypt", &CryptoContextImpl<DCRTPoly>::IntMPBootEncrypt, py::arg("publicKey"), py::arg("sharePair"), py::arg("a"), py::arg("ciphertext"), py::doc(cc_IntMPBootEncrypt_docs))
+         .def("MultiMultEvalKey", &CryptoContextImpl<DCRTPoly>::MultiMultEvalKey, py::arg("privateKey"), py::arg("evalKey"), py::arg("keyTag") = "", py::doc(cc_MultiMultEvalKey_docs))
+         .def("MultiAddEvalSumKeys", &CryptoContextImpl<DCRTPoly>::MultiAddEvalSumKeys, py::arg("evalKeyMap1"), py::arg("evalKeyMap2"), py::arg("keyTag") = "", py::doc(cc_MultiAddEvalSumKeys_docs))
+         .def("EvalMerge", &CryptoContextImpl<DCRTPoly>::EvalMerge, py::arg("ciphertextVec"), py::doc(cc_EvalMerge_docs))
+         .def("ReKeyGen", py::overload_cast<const PrivateKey<DCRTPoly>, const PublicKey<DCRTPoly>>(&CryptoContextImpl<DCRTPoly>::ReKeyGen, py::const_), py::arg("oldPrivateKey"), py::arg("newPublicKey"), py::doc(cc_ReKeyGen_docs))
+         .def("ReEncrypt", &CryptoContextImpl<DCRTPoly>::ReEncrypt, py::arg("ciphertext"), py::arg("evalKey"), py::arg("publicKey") = py::none(), py::doc(cc_ReEncrypt_docs))
+         .def("Rescale", &CryptoContextImpl<DCRTPoly>::Rescale, py::arg("ciphertext"), py::doc(cc_Rescale_docs))
+         .def("RescaleInPlace", &CryptoContextImpl<DCRTPoly>::RescaleInPlace, py::arg("ciphertext"), py::doc(cc_RescaleInPlace_docs))
+         .def("ModReduce", &CryptoContextImpl<DCRTPoly>::ModReduce, py::arg("ciphertext"), py::doc(cc_ModReduce_docs))
+         .def("ModReduceInPlace", &CryptoContextImpl<DCRTPoly>::ModReduceInPlace, py::arg("ciphertext"), py::doc(cc_ModReduceInPlace_docs))
+         .def("EvalBootstrapSetup", &CryptoContextImpl<DCRTPoly>::EvalBootstrapSetup, py::arg("levelBudget") = std::vector<uint32_t>({5, 4}), py::arg("dim1") = std::vector<uint32_t>({0, 0}), py::arg("slots") = 0, py::arg("correctionFactor") = 0, py::arg("precompute") = true, py::doc(cc_EvalBootstrapSetup_docs))
+         .def("EvalBootstrapKeyGen", &CryptoContextImpl<DCRTPoly>::EvalBootstrapKeyGen, py::arg("privateKey"), py::arg("slots"), py::doc(cc_EvalBootstrapKeyGen_docs))
+         .def("EvalBootstrap", &CryptoContextImpl<DCRTPoly>::EvalBootstrap, py::arg("ciphertext"), py::arg("numIterations") = 1, py::arg("precision") = 0, py::doc(cc_EvalBootstrap_docs))
+         .def("EvalCKKStoFHEWSetup", &CryptoContextImpl<DCRTPoly>::EvalCKKStoFHEWSetup, py::arg("schswchparams"), py::doc(cc_EvalCKKStoFHEWSetup_docs))
+         .def("EvalCKKStoFHEWKeyGen", &CryptoContextImpl<DCRTPoly>::EvalCKKStoFHEWKeyGen, py::arg("keyPair"), py::arg("lwesk"), py::doc(cc_EvalCKKStoFHEWKeyGen_docs))
+         .def("EvalCKKStoFHEWPrecompute", &CryptoContextImpl<DCRTPoly>::EvalCKKStoFHEWPrecompute, py::arg("scale") = 1.0, py::doc(cc_EvalCKKStoFHEWPrecompute_docs))
+         .def("EvalCKKStoFHEW", &CryptoContextImpl<DCRTPoly>::EvalCKKStoFHEW, py::arg("ciphertext"), py::arg("numCtxts") = 0, py::doc(cc_EvalCKKStoFHEW_docs))
+         .def("EvalFHEWtoCKKSSetup", &CryptoContextImpl<DCRTPoly>::EvalFHEWtoCKKSSetup, py::arg("ccLWE"), py::arg("numSlotsCKKS") = 0, py::arg("logQ") = 25, py::doc(cc_EvalFHEWtoCKKSSetup_docs))
+         .def("EvalFHEWtoCKKSKeyGen", &CryptoContextImpl<DCRTPoly>::EvalFHEWtoCKKSKeyGen, py::arg("keyPair"), py::arg("lwesk"), py::arg("numSlots") = 0, py::arg("numCtxts") = 0, py::arg("dim1") = 0, py::arg("L") = 0, py::doc(cc_EvalFHEWtoCKKSKeyGen_docs))
+         .def("EvalFHEWtoCKKS", &CryptoContextImpl<DCRTPoly>::EvalFHEWtoCKKS, py::arg("LWECiphertexts"), py::arg("numCtxts") = 0, py::arg("numSlots") = 0, py::arg("p") = 4, py::arg("pmin") = 0.0, py::arg("pmax") = 2.0, py::arg("dim1") = 0, py::doc(cc_EvalFHEWtoCKKS_docs))
+         // Helper: expose CKKS ReduceRotation(index, slotsHalf) logic, using decoding params from m_bootPrecomMap
+         .def("ReduceRotation", [](CryptoContext<DCRTPoly> cc, int32_t index, uint32_t slots)
+              {
+                    // Mirror ckksrns-utils.cpp::ReduceRotation
+                    const auto islots = static_cast<int32_t>(slots);
+                    auto isPowerOfTwo = [](uint32_t x) {
+                         return x && !(x & (x - 1));
+                    };
+
+                    if (isPowerOfTwo(slots)) {
+                         const auto n = static_cast<uint32_t>(std::log2(slots));
+                         if (index >= 0)
+                              return static_cast<uint32_t>(index - ((index >> n) << n));
+                         return static_cast<uint32_t>(index + islots + ((std::abs(index) >> n) << n));
+                    }
+                    return static_cast<uint32_t>((islots + index % islots) % islots); }, py::arg("index"), py::arg("slots"))
+         .def("EvalSchemeSwitchingSetup", &CryptoContextImpl<DCRTPoly>::EvalSchemeSwitchingSetup, py::arg("schswchparams"), py::doc(cc_EvalSchemeSwitchingSetup_docs))
+         // void EvalSchemeSwitchingKeyGen(const KeyPair<DCRTPoly> &keyPair, ConstLWEPrivateKey &lwesk, uint32_t numValues = 0, bool oneHot = true, bool alt = false, uint32_t dim1CF = 0, uint32_t dim1FC = 0, uint32_t LCF = 1, uint32_t LFC = 0)
+         .def("EvalSchemeSwitchingKeyGen", &CryptoContextImpl<DCRTPoly>::EvalSchemeSwitchingKeyGen, py::arg("keyPair"), py::arg("lwesk"), py::doc(cc_EvalSchemeSwitchingKeyGen_docs))
+         .def("EvalCompareSwitchPrecompute", &CryptoContextImpl<DCRTPoly>::EvalCompareSwitchPrecompute, py::arg("pLWE") = 0, py::arg("scaleSign") = 1.0, py::arg("unit") = false, py::doc(cc_EvalCompareSwitchPrecompute_docs))
+         .def("EvalCompareSchemeSwitching", &CryptoContextImpl<DCRTPoly>::EvalCompareSchemeSwitching, py::arg("ciphertext1"), py::arg("ciphertext2"), py::arg("numCtxts") = 0, py::arg("numSlots") = 0, py::arg("pLWE") = 0, py::arg("scaleSign") = 1.0, py::arg("unit") = false, py::doc(cc_EvalCompareSchemeSwitching_docs))
+         .def("EvalMinSchemeSwitching", &CryptoContextImpl<DCRTPoly>::EvalMinSchemeSwitching, py::arg("ciphertext"), py::arg("publicKey"), py::arg("numValues") = 0, py::arg("numSlots") = 0, py::arg("pLWE") = 0, py::arg("scaleSign") = 1.0, py::doc(cc_EvalMinSchemeSwitching_docs))
+         .def("EvalMinSchemeSwitchingAlt", &CryptoContextImpl<DCRTPoly>::EvalMinSchemeSwitchingAlt, py::arg("ciphertext"), py::arg("publicKey"), py::arg("numValues") = 0, py::arg("numSlots") = 0, py::arg("pLWE") = 0, py::arg("scaleSign") = 1.0, py::doc(cc_EvalMinSchemeSwitchingAlt_docs))
+         .def("EvalMaxSchemeSwitching", &CryptoContextImpl<DCRTPoly>::EvalMaxSchemeSwitching, py::arg("ciphertext"), py::arg("publicKey"), py::arg("numValues") = 0, py::arg("numSlots") = 0, py::arg("pLWE") = 0, py::arg("scaleSign") = 1.0, py::doc(cc_EvalMaxSchemeSwitching_docs))
+         .def("EvalMaxSchemeSwitchingAlt", &CryptoContextImpl<DCRTPoly>::EvalMaxSchemeSwitchingAlt, py::arg("ciphertext"), py::arg("publicKey"), py::arg("numValues") = 0, py::arg("numSlots") = 0, py::arg("pLWE") = 0, py::arg("scaleSign") = 1.0, py::doc(cc_EvalMaxSchemeSwitchingAlt_docs))
+         // TODO (Oliveira, R.): Solve pointer handling bug when returning EvalKeyMap objects for the next functions
+         //  TODO (dsuponit): I'd suggest this version of EvalAutomorphismKeyGen instead:
+         //  .def("EvalAutomorphismKeyGen",
+         //      [](const CryptoContextImpl<DCRTPoly>& cc,
+         //          const PrivateKey<DCRTPoly>& privateKey,
+         //          const std::vector<uint32_t>& indexList) -> py::dict {
+         //          auto keyMapPtr = cc.EvalAutomorphismKeyGen(privateKey, indexList);
+         //          py::dict result;
+         //          for (const auto& kv : *keyMapPtr) {
+         //              result[py::int_(kv.first)] = kv.second;
+         //          }
+         //          return result;
+         //      },
+         //      py::doc(cc_EvalAutomorphismKeyGen_docs))
+         //      py::arg("privateKey"),
+         //      py::arg("indexList"))
+         .def("EvalAutomorphismKeyGen", py::overload_cast<const PrivateKey<DCRTPoly>, const std::vector<uint32_t> &>(&CryptoContextImpl<DCRTPoly>::EvalAutomorphismKeyGen, py::const_), py::arg("privateKey"), py::arg("indexList"), py::doc(cc_EvalAutomorphismKeyGen_docs))
+         .def("Compress", &CryptoContextImpl<DCRTPoly>::Compress, py::arg("ciphertext"), py::arg("towersLeft") = 1, py::arg("noiseScaleDeg") = 1)
+         .def("EvalMultMany", &CryptoContextImpl<DCRTPoly>::EvalMultMany, py::arg("ciphertextVec"))
+         .def("EvalAddMany", &CryptoContextImpl<DCRTPoly>::EvalAddMany, py::arg("ciphertextVec"))
+         .def("EvalAddManyInPlace", &CryptoContextImpl<DCRTPoly>::EvalAddManyInPlace, py::arg("ciphertextVec"))
+         .def("FindAutomorphismIndex", &CryptoContextImpl<DCRTPoly>::FindAutomorphismIndex, py::arg("idx"), py::doc(cc_FindAutomorphismIndex_docs))
+         .def("FindAutomorphismIndices", &CryptoContextImpl<DCRTPoly>::FindAutomorphismIndices, py::arg("idxList"), py::doc(cc_FindAutomorphismIndices_docs))
+         .def("GetEvalSumKeyMap", [](CryptoContext<DCRTPoly> &self, const std::string &keyTag)
+              { return std::make_shared<std::map<uint32_t, EvalKey<DCRTPoly>>>(CryptoContextImpl<DCRTPoly>::GetEvalSumKeyMap(keyTag)); }, py::arg("keyTag"), py::doc(cc_GetEvalSumKeyMap_docs))
+         .def("GetBinCCForSchemeSwitch", &CryptoContextImpl<DCRTPoly>::GetBinCCForSchemeSwitch)
+         .def_static("InsertEvalSumKey", &CryptoContextImpl<DCRTPoly>::InsertEvalSumKey, py::arg("evalKeyMap"), py::arg("keyTag") = "", py::doc(cc_InsertEvalSumKey_docs))
+         .def_static("InsertEvalMultKey", &CryptoContextImpl<DCRTPoly>::InsertEvalMultKey, py::arg("evalKeyVec"), py::arg("keyTag") = "", py::doc(cc_InsertEvalMultKey_docs))
+         .def_static("InsertEvalAutomorphismKey", &CryptoContextImpl<DCRTPoly>::InsertEvalAutomorphismKey, py::arg("evalKeyMap"), py::arg("keyTag") = "", py::doc(cc_InsertEvalAutomorphismKey_docs))
+         .def_static("ClearEvalAutomorphismKeys", static_cast<void (*)()>(&CryptoContextImpl<DCRTPoly>::ClearEvalAutomorphismKeys), cc_ClearEvalAutomorphismKeys_docs)
+         // it is safer to return by value instead of by reference (GetEvalMultKeyVector returns a const reference to std::vector)
+         .def_static("GetEvalMultKeyVector", [](const std::string &keyTag)
+                     { return CryptoContextImpl<DCRTPoly>::GetEvalMultKeyVector(keyTag); }, py::arg("keyTag") = "", py::doc(cc_GetEvalMultKeyVector_docs))
+         .def_static("GetEvalAutomorphismKeyMap", &CryptoContextImpl<DCRTPoly>::GetEvalAutomorphismKeyMapPtr, py::arg("keyTag") = "", py::doc(cc_GetEvalAutomorphismKeyMap_docs))
+         .def_static("SerializeEvalMultKey", [](const std::string &filename, const SerType::SERBINARY &sertype, std::string keyTag = "")
+                     {
+                std::ofstream outfile(filename, std::ios::out | std::ios::binary);
+                bool res = CryptoContextImpl<DCRTPoly>::SerializeEvalMultKey<SerType::SERBINARY>(outfile, sertype, keyTag);
+                outfile.close();
+                return res; }, py::arg("filename"), py::arg("sertype"), py::arg("keyTag") = "", py::doc(cc_SerializeEvalMultKey_docs))
+         .def_static("SerializeEvalMultKey", [](const std::string &filename, const SerType::SERJSON &sertype, std::string keyTag = "")
+                     {
+                std::ofstream outfile(filename, std::ios::out | std::ios::binary);
+                bool res = CryptoContextImpl<DCRTPoly>::SerializeEvalMultKey<SerType::SERJSON>(outfile, sertype, keyTag);
+                outfile.close();
+                return res; }, py::arg("filename"), py::arg("sertype"), py::arg("keyTag") = "", py::doc(cc_SerializeEvalMultKey_docs))
+         .def_static("SerializeEvalAutomorphismKey", [](const std::string &filename, const SerType::SERBINARY &sertype, std::string keyTag = "")
+                     {
+                std::ofstream outfile(filename, std::ios::out | std::ios::binary);
+                bool res = CryptoContextImpl<DCRTPoly>::SerializeEvalAutomorphismKey<SerType::SERBINARY>(outfile, sertype, keyTag);
+                outfile.close();
+                return res; }, py::arg("filename"), py::arg("sertype"), py::arg("keyTag") = "", py::doc(cc_SerializeEvalAutomorphismKey_docs))
+         .def_static("SerializeEvalAutomorphismKey", [](const std::string &filename, const SerType::SERJSON &sertype, std::string keyTag = "")
+                     {
+                std::ofstream outfile(filename, std::ios::out | std::ios::binary);
+                bool res = CryptoContextImpl<DCRTPoly>::SerializeEvalAutomorphismKey<SerType::SERJSON>(outfile, sertype, keyTag);
+                outfile.close();
+                return res; }, py::arg("filename"), py::arg("sertype"), py::arg("keyTag") = "", py::doc(cc_SerializeEvalAutomorphismKey_docs))
+         .def_static("DeserializeEvalMultKey", [](const std::string &filename, const SerType::SERBINARY &sertype)
+                     {
+                std::ifstream emkeys(filename, std::ios::in | std::ios::binary);
+                if (!emkeys.is_open()) {
+                    std::cerr << "I cannot read serialization from " << filename << std::endl;
+                }
+                bool res = CryptoContextImpl<DCRTPoly>::DeserializeEvalMultKey<SerType::SERBINARY>(emkeys, sertype);
+                return res; }, py::arg("filename"), py::arg("sertype"), py::doc(cc_DeserializeEvalMultKey_docs))
+         .def_static("DeserializeEvalMultKey", [](const std::string &filename, const SerType::SERJSON &sertype)
+                     {
+                std::ifstream emkeys(filename, std::ios::in | std::ios::binary);
+                if (!emkeys.is_open()) {
+                    std::cerr << "I cannot read serialization from " << filename << std::endl;
+                }
+                bool res = CryptoContextImpl<DCRTPoly>::DeserializeEvalMultKey<SerType::SERJSON>(emkeys, sertype);
+                return res; }, py::arg("filename"), py::arg("sertype"), py::doc(cc_DeserializeEvalMultKey_docs))
+         .def_static("DeserializeEvalAutomorphismKey", [](const std::string &filename, const SerType::SERBINARY &sertype)
+                     {
+                std::ifstream erkeys(filename, std::ios::in | std::ios::binary);
+                if (!erkeys.is_open()) {
+                    std::cerr << "I cannot read serialization from " << filename << std::endl;
+                }
+                bool res = CryptoContextImpl<DCRTPoly>::DeserializeEvalAutomorphismKey<SerType::SERBINARY>(erkeys, sertype);
+                return res; }, py::arg("filename"), py::arg("sertype"), py::doc(cc_DeserializeEvalAutomorphismKey_docs))
+         .def_static("DeserializeEvalAutomorphismKey", [](const std::string &filename, const SerType::SERJSON &sertype)
+                     {
+                std::ifstream erkeys(filename, std::ios::in | std::ios::binary);
+                if (!erkeys.is_open()) {
+                    std::cerr << "I cannot read serialization from " << filename << std::endl;
+                }
+                bool res = CryptoContextImpl<DCRTPoly>::DeserializeEvalAutomorphismKey<SerType::SERJSON>(erkeys, sertype);
+                return res; }, py::arg("filename"), py::arg("sertype"), py::doc(cc_DeserializeEvalAutomorphismKey_docs))
+         .def("GetPQ", [](CryptoContext<DCRTPoly> &self)
+              {
+                auto cryptoParams = std::dynamic_pointer_cast<CryptoParametersCKKSRNS>(self->GetCryptoParameters());
+                if (!cryptoParams) {
+                    OPENFHE_THROW("GetPQ is only supported for CKKS-RNS crypto contexts");
+                }
+
+                const auto& paramsQP = cryptoParams->GetParamsQP()->GetParams();
+                const auto paramsQ = cryptoParams->GetElementParams();
+                const size_t sizeQ = paramsQ->GetParams().size();
+                const size_t sizeQP = paramsQP.size();
+                if (sizeQP < sizeQ) {
+                    OPENFHE_THROW("Inconsistent CRT parameter sizes: QP smaller than Q");
+                }
+
+                const size_t sizeP = sizeQP - sizeQ;
+                std::vector<uint64_t> moduliQ;
+                std::vector<uint64_t> rootsQ;
+                std::vector<uint64_t> moduliP;
+                std::vector<uint64_t> rootsP;
+                moduliQ.reserve(sizeQ);
+                rootsQ.reserve(sizeQ);
+                moduliP.reserve(sizeP);
+                rootsP.reserve(sizeP);
+
+                for (size_t i = 0; i < sizeQ; ++i) {
+                    moduliQ.push_back(uint64_t(paramsQP[i]->GetModulus()));
+                    rootsQ.push_back(uint64_t(paramsQP[i]->GetRootOfUnity()));
+                }
+                for (size_t i = sizeQ; i < sizeQP; ++i) {
+                    moduliP.push_back(uint64_t(paramsQP[i]->GetModulus()));
+                    rootsP.push_back(uint64_t(paramsQP[i]->GetRootOfUnity()));
+                }
+
+                return std::make_tuple(moduliQ, rootsQ, moduliP, rootsP); })
+         .def("GetEvalMultKey", [](CryptoContext<DCRTPoly> &self)
+              {
+                const auto& multKeys = self->GetAllEvalMultKeys();
+                if (multKeys.empty()) {
+                    OPENFHE_THROW("No EvalMult keys available in the current CryptoContext");
+                }
+
+                const auto& keyVector = multKeys.begin()->second;
+                if (keyVector.empty()) {
+                    OPENFHE_THROW("EvalMult key vector is empty");
+                }
+
+                const auto& keyElementsB = keyVector.front()->GetBVector();
+                const auto& keyElementsA = keyVector.front()->GetAVector();
+                if (keyElementsB.empty() || keyElementsA.empty()) {
+                    OPENFHE_THROW("EvalMult key data is empty");
+                }
+
+                const size_t towers = keyElementsB.front().GetNumOfElements();
+                const size_t valuesLen = keyElementsB.front().GetElementAtIndex(0).GetValues().GetLength();
+                const size_t totalBSize = keyElementsB.size() * towers * valuesLen;
+                const size_t totalASize = keyElementsA.size() * towers * valuesLen;
+
+                py::array_t<uint64_t> vecMultKeyB(totalBSize);
+                py::array_t<uint64_t> vecMultKeyA(totalASize);
+                auto bufB = vecMultKeyB.request();
+                auto bufA = vecMultKeyA.request();
+                auto* ptrB = static_cast<uint64_t*>(bufB.ptr);
+                auto* ptrA = static_cast<uint64_t*>(bufA.ptr);
+
+                size_t index = 0;
+                for (size_t i = 0; i < keyElementsB.size(); ++i) {
+                    const auto& bPoly = keyElementsB[i];
+                    const auto& aPoly = keyElementsA[i];
+                    for (size_t j = 0; j < towers; ++j) {
+                        const auto& valuesB = bPoly.GetElementAtIndex(j).GetValues();
+                        const auto& valuesA = aPoly.GetElementAtIndex(j).GetValues();
+                        for (size_t k = 0; k < valuesB.GetLength(); ++k) {
+                            ptrB[index] = static_cast<uint64_t>(valuesB[k]);
+                            ptrA[index] = static_cast<uint64_t>(valuesA[k]);
+                            ++index;
+                        }
+                    }
+                }
+
+                return std::make_tuple(vecMultKeyB, vecMultKeyA); })
+         .def("GetEvalRotateKey", [](CryptoContext<DCRTPoly> &self)
+              {
+                std::vector<std::tuple<uint64_t, py::array_t<uint64_t>, py::array_t<uint64_t>>> result;
+                const auto evalAutoKeys = self->GetAllEvalAutomorphismKeys();
+                if (evalAutoKeys.empty()) {
+                    return result;
+                }
+
+                for (const auto& entry : evalAutoKeys) {
+                    if (!entry.second) {
+                        continue;
+                    }
+                    for (const auto& it : *entry.second) {
+                        const auto& key = it.second;
+                        if (!key) {
+                            continue;
+                        }
+                        const auto& keyElementsB = key->GetBVector();
+                        const auto& keyElementsA = key->GetAVector();
+                        if (keyElementsB.empty() || keyElementsA.empty()) {
+                            continue;
+                        }
+
+                        const size_t towers = keyElementsB.front().GetNumOfElements();
+                        const size_t valuesLen = keyElementsB.front().GetElementAtIndex(0).GetValues().GetLength();
+                        const size_t totalSize = keyElementsB.size() * towers * valuesLen;
+
+                        py::array_t<uint64_t> vecAutomorphismKeyB(totalSize);
+                        py::array_t<uint64_t> vecAutomorphismKeyA(totalSize);
+                        auto bufB = vecAutomorphismKeyB.request();
+                        auto bufA = vecAutomorphismKeyA.request();
+                        auto* ptrB = static_cast<uint64_t*>(bufB.ptr);
+                        auto* ptrA = static_cast<uint64_t*>(bufA.ptr);
+
+                        size_t cursor = 0;
+                        for (size_t i = 0; i < keyElementsB.size(); ++i) {
+                            const auto& bPoly = keyElementsB[i];
+                            const auto& aPoly = keyElementsA[i];
+                            for (size_t j = 0; j < towers; ++j) {
+                                const auto& valuesB = bPoly.GetElementAtIndex(j).GetValues();
+                                const auto& valuesA = aPoly.GetElementAtIndex(j).GetValues();
+                                for (size_t k = 0; k < valuesB.GetLength(); ++k) {
+                                    ptrB[cursor] = static_cast<uint64_t>(valuesB[k]);
+                                    ptrA[cursor] = static_cast<uint64_t>(valuesA[k]);
+                                    ++cursor;
+                                }
+                            }
+                        }
+
+                        result.emplace_back(static_cast<uint64_t>(it.first), std::move(vecAutomorphismKeyB), std::move(vecAutomorphismKeyA));
+                    }
+                }
+
+                return result; })
+         //     .def("GetEvalBootstrapAutoIdx2RotIdxMap", [](CryptoContext<DCRTPoly> cc, uint32_t logBsSlots)
+         //          {
+         //                 // 使用刚刚绑定的 FindBootstrapRotationIndices 获取 rotIndices
+         //                 uint32_t slots = (1u << logBsSlots);
+         //                 uint32_t M     = cc->GetCryptoParameters()->GetElementParams()->GetRingDimension() * 2;
+
+         //                 SchemeBase_TWIN *scheme_ptr =
+         //                      reinterpret_cast<SchemeBase_TWIN *>(cc->GetScheme().get());
+         //                 auto fhe_ptr = reinterpret_cast<FHECKKSRNS_TWIN *>(
+         //                      dynamic_cast<FHECKKSRNS *>(scheme_ptr->m_FHE.get()));
+
+         //                 using FindBootstrapRotationIndicesPtr =
+         //                      std::vector<int32_t> (FHECKKSRNS_TWIN::*)(uint32_t, uint32_t);
+         //                 FindBootstrapRotationIndicesPtr funcPtr = &FHECKKSRNS_TWIN::FindBootstrapRotationIndices;
+
+         //                 auto rotIndices = (fhe_ptr->*funcPtr)(slots, M);
+
+         //                 // autoIndices 对应 automorphism index
+         //                 std::vector<uint32_t> autoIndices(rotIndices.size());
+         //                 uint32_t Nover2 = cc->GetCryptoParameters()->GetElementParams()->GetRingDimension() / 2;
+         //                 for (size_t i = 0; i < rotIndices.size(); i++) {
+         //                      if (rotIndices[i] < 0)
+         //                           rotIndices[i] = static_cast<int32_t>(Nover2) - std::abs(rotIndices[i]);
+         //                      autoIndices[i] = cc->FindAutomorphismIndex(static_cast<uint32_t>(rotIndices[i]));
+         //                 }
+
+         //                 std::map<int, int> autoIdx2rotIdx_map;
+         //                 for (size_t i = 0; i < autoIndices.size(); ++i) {
+         //                      autoIdx2rotIdx_map[static_cast<int>(autoIndices[i])] = static_cast<int>(rotIndices[i]);
+         //                 }
+
+         //                 return autoIdx2rotIdx_map; })
+         // Expose decoding-side rotation index generation: FHECKKSRNS::FindSlotsToCoeffsRotationIndices
+         .def("FindSlotsToCoeffsRotationIndices", [](CryptoContext<DCRTPoly> cc, uint32_t slots, uint32_t M)
+              {
+                     SchemeBase_TWIN* scheme_ptr =
+                          reinterpret_cast<SchemeBase_TWIN*>(cc->GetScheme().get());
+                     auto fhe_ptr = reinterpret_cast<FHECKKSRNS_TWIN*>(
+                          dynamic_cast<FHECKKSRNS*>(scheme_ptr->m_FHE.get()));
+
+                     // Mirror FHECKKSRNS::FindSlotsToCoeffsRotationIndices logic using
+                     // the precomputed decoding parameters in m_bootPrecomMap (m_paramsDec).
+                     auto it = fhe_ptr->m_bootPrecomMap.find(slots);
+                     if (it == fhe_ptr->m_bootPrecomMap.end() || !it->second) {
+                          OPENFHE_THROW("FindSlotsToCoeffsRotationIndices: no bootstrap precomputation for given slots");
                      }
-                   }
+
+                     const CKKSBootstrapPrecom& p = *it->second;
+
+                     uint32_t levelBudget     = p.m_paramsDec[CKKS_BOOT_PARAMS::LEVEL_BUDGET];
+                     uint32_t layersCollapse  = p.m_paramsDec[CKKS_BOOT_PARAMS::LAYERS_COLL];
+                     uint32_t remCollapse     = p.m_paramsDec[CKKS_BOOT_PARAMS::LAYERS_REM];
+                     uint32_t numRotations    = p.m_paramsDec[CKKS_BOOT_PARAMS::NUM_ROTATIONS];
+                     uint32_t b               = p.m_paramsDec[CKKS_BOOT_PARAMS::BABY_STEP];
+                     uint32_t g               = p.m_paramsDec[CKKS_BOOT_PARAMS::GIANT_STEP];
+                     uint32_t numRotationsRem = p.m_paramsDec[CKKS_BOOT_PARAMS::NUM_ROTATIONS_REM];
+                     uint32_t bRem            = p.m_paramsDec[CKKS_BOOT_PARAMS::BABY_STEP_REM];
+                     uint32_t gRem            = p.m_paramsDec[CKKS_BOOT_PARAMS::GIANT_STEP_REM];
+
+                     uint32_t flagRem = (remCollapse == 0) ? 0u : 1u;
+                     if (levelBudget < flagRem)
+                          OPENFHE_THROW("FindSlotsToCoeffsRotationIndices: levelBudget can not be less than flagRem");
+
+                     std::vector<uint32_t> indexList;
+                     // To avoid overflowing uint32_t variables, we do some math operations below in a specific order
+                     // Computing all indices for baby-step giant-step procedure for encoding and decoding
+                     int32_t indexListSz = static_cast<int32_t>(b) + g - 2 + bRem + gRem - 2 + 1 + static_cast<int32_t>(M);
+                     if (indexListSz < 0)
+                          OPENFHE_THROW("FindSlotsToCoeffsRotationIndices: indexListSz can not be negative");
+                     indexList.reserve(static_cast<size_t>(indexListSz));
+
+                     auto reduceRotation = [](int32_t index, uint32_t slotsHalf) -> uint32_t {
+                          const auto islots = static_cast<int32_t>(slotsHalf);
+                          auto isPowerOfTwo = [](uint32_t x) {
+                               return x && !(x & (x - 1));
+                          };
+
+                          if (isPowerOfTwo(slotsHalf)) {
+                               const auto n = static_cast<uint32_t>(std::log2(slotsHalf));
+                               if (index >= 0)
+                                    return static_cast<uint32_t>(index - ((index >> n) << n));
+                               return static_cast<uint32_t>(index + islots + ((std::abs(index) >> n) << n));
+                          }
+                          return static_cast<uint32_t>((islots + index % islots) % islots);
+                     };
+
+                     // Main loops: mirror FHECKKSRNS::FindSlotsToCoeffsRotationIndices
+                     for (size_t s = 0; s < (levelBudget - flagRem); ++s) {
+                          const uint32_t scalingFactor = 1U << (s * layersCollapse);
+                          const int32_t halfRots       = (1 - static_cast<int32_t>(numRotations + 1) / 2);
+                          for (int32_t j = halfRots; j < static_cast<int32_t>(g + halfRots); ++j) {
+                               indexList.emplace_back(reduceRotation(j * static_cast<int32_t>(scalingFactor), M / 4));
+                          }
+                          for (size_t i = 0; i < b; ++i) {
+                               indexList.emplace_back(
+                                    reduceRotation(static_cast<int32_t>((g * i) * scalingFactor), M / 4));
+                          }
+                     }
+
+                     if (flagRem) {
+                          uint32_t s                   = levelBudget - flagRem;
+                          const uint32_t scalingFactor = 1U << (s * layersCollapse);
+                          const int32_t halfRots       = (1 - static_cast<int32_t>(numRotationsRem + 1) / 2);
+                          for (int32_t j = halfRots; j < static_cast<int32_t>(gRem + halfRots); ++j) {
+                               indexList.emplace_back(
+                                    reduceRotation(j * static_cast<int32_t>(scalingFactor), M / 4));
+                          }
+                          for (size_t i = 0; i < bRem; ++i) {
+                               indexList.emplace_back(
+                                    reduceRotation(static_cast<int32_t>((gRem * i) * scalingFactor), M / 4));
+                          }
+                     }
+
+                     uint32_t m = slots * 4;
+                     // additional automorphisms are needed for sparse bootstrapping
+                     if (m != M) {
+                          for (size_t j = 1; j < M / m; j <<= 1) {
+                               indexList.emplace_back(static_cast<uint32_t>(j * slots));
+                          }
+                     }
+
+                     return indexList; }, py::arg("slots"), py::arg("M"))
+         // Expose encoding-side rotation index generation: FHECKKSRNS::FindCoeffsToSlotsRotationIndices
+         .def("FindCoeffsToSlotsRotationIndices", [](CryptoContext<DCRTPoly> cc, uint32_t slots, uint32_t M)
+              {
+                     SchemeBase_TWIN* scheme_ptr =
+                          reinterpret_cast<SchemeBase_TWIN*>(cc->GetScheme().get());
+                     auto fhe_ptr = reinterpret_cast<FHECKKSRNS_TWIN*>(
+                          dynamic_cast<FHECKKSRNS*>(scheme_ptr->m_FHE.get()));
+
+                     // Mirror FHECKKSRNS::FindCoeffsToSlotsRotationIndices logic using
+                     // the precomputed encoding parameters in m_bootPrecomMap (m_paramsEnc).
+                     auto it = fhe_ptr->m_bootPrecomMap.find(slots);
+                     if (it == fhe_ptr->m_bootPrecomMap.end() || !it->second) {
+                          OPENFHE_THROW("FindCoeffsToSlotsRotationIndices: no bootstrap precomputation for given slots");
+                     }
+
+                     const CKKSBootstrapPrecom& p = *it->second;
+
+                     uint32_t levelBudget     = p.m_paramsEnc[CKKS_BOOT_PARAMS::LEVEL_BUDGET];
+                     uint32_t layersCollapse  = p.m_paramsEnc[CKKS_BOOT_PARAMS::LAYERS_COLL];
+                     uint32_t remCollapse     = p.m_paramsEnc[CKKS_BOOT_PARAMS::LAYERS_REM];
+                     uint32_t numRotations    = p.m_paramsEnc[CKKS_BOOT_PARAMS::NUM_ROTATIONS];
+                     uint32_t b               = p.m_paramsEnc[CKKS_BOOT_PARAMS::BABY_STEP];
+                     uint32_t g               = p.m_paramsEnc[CKKS_BOOT_PARAMS::GIANT_STEP];
+                     uint32_t numRotationsRem = p.m_paramsEnc[CKKS_BOOT_PARAMS::NUM_ROTATIONS_REM];
+                     uint32_t bRem            = p.m_paramsEnc[CKKS_BOOT_PARAMS::BABY_STEP_REM];
+                     uint32_t gRem            = p.m_paramsEnc[CKKS_BOOT_PARAMS::GIANT_STEP_REM];
+
+                     uint32_t flagRem = (remCollapse == 0) ? 0u : 1u;
+
+                     std::vector<uint32_t> indexList;
+                     // To avoid overflowing uint32_t variables, we do some math operations below in a specific order
+                     // Computing all indices for baby-step giant-step procedure for encoding and decoding
+                     int32_t indexListSz = static_cast<int32_t>(b) + g - 2 + bRem + gRem - 2 + 1 + static_cast<int32_t>(M);
+                     if (indexListSz < 0)
+                          OPENFHE_THROW("FindCoeffsToSlotsRotationIndices: indexListSz can not be negative");
+                     indexList.reserve(static_cast<size_t>(indexListSz));
+
+                     auto reduceRotation = [](int32_t index, uint32_t slotsHalf) -> uint32_t {
+                          const auto islots = static_cast<int32_t>(slotsHalf);
+                          auto isPowerOfTwo = [](uint32_t x) {
+                               return x && !(x & (x - 1));
+                          };
+
+                          if (isPowerOfTwo(slotsHalf)) {
+                               const auto n = static_cast<uint32_t>(std::log2(slotsHalf));
+                               if (index >= 0)
+                                    return static_cast<uint32_t>(index - ((index >> n) << n));
+                               return static_cast<uint32_t>(index + islots + ((std::abs(index) >> n) << n));
+                          }
+                          return static_cast<uint32_t>((islots + index % islots) % islots);
+                     };
+
+                     // Main loops: mirror FHECKKSRNS::FindCoeffsToSlotsRotationIndices
+                     for (int32_t s = static_cast<int32_t>(levelBudget) - 1; s >= static_cast<int32_t>(flagRem); --s) {
+                          const uint32_t scalingFactor = 1U << ((s - flagRem) * layersCollapse + remCollapse);
+                          const int32_t halfRots       = (1 - static_cast<int32_t>((numRotations + 1) / 2));
+                          for (int32_t j = halfRots; j < static_cast<int32_t>(g + halfRots); ++j) {
+                               indexList.emplace_back(reduceRotation(j * static_cast<int32_t>(scalingFactor), slots));
+                          }
+                          for (size_t i = 0; i < b; ++i) {
+                               indexList.emplace_back(
+                                    reduceRotation(static_cast<int32_t>((g * i) * scalingFactor), M / 4));
+                          }
+                     }
+
+                     if (flagRem) {
+                          const int32_t halfRots = (1 - static_cast<int32_t>((numRotationsRem + 1) / 2));
+                          for (int32_t j = halfRots; j < static_cast<int32_t>(gRem + halfRots); ++j) {
+                               indexList.emplace_back(reduceRotation(j, slots));
+                          }
+                          for (size_t i = 0; i < bRem; ++i) {
+                               indexList.emplace_back(
+                                    reduceRotation(static_cast<int32_t>(gRem * i), M / 4));
+                          }
+                     }
+
+                     uint32_t m = slots * 4;
+                     // additional automorphisms are needed for sparse bootstrapping
+                     if (m != M) {
+                          for (size_t j = 1; j < M / m; j <<= 1) {
+                               indexList.emplace_back(static_cast<uint32_t>(j * slots));
+                          }
+                     }
+
+                     return indexList; }, py::arg("slots"), py::arg("M"))
+         .def("Getm_bootPrecomMap", [](CryptoContext<DCRTPoly> cc)
+              {
+                 SchemeBase_TWIN* scheme_ptr = reinterpret_cast<SchemeBase_TWIN*>(cc->GetScheme().get());
+                 auto fhe_ptr = reinterpret_cast<FHECKKSRNS_TWIN*>(dynamic_cast<FHECKKSRNS*>(scheme_ptr->m_FHE.get()));
+
+                 py::dict out; // Python 中的返回值: { slots(int) : { field_name: value, ... } }
+
+                 for (auto& it : fhe_ptr->m_bootPrecomMap) {
+                     uint32_t slots = it.first;
+                     const auto& precomPtr = it.second;
+                     if (!precomPtr) {
+                         continue; // 应该不会发生, 防御性编程
+                     }
+                     const CKKSBootstrapPrecom& pre = *precomPtr;
+
+                     py::dict info;
+                     info["slots"]     = pre.m_slots;
+                     info["dim1"]      = pre.m_dim1;
+                     info["gs"]        = pre.m_gs;
+                     info["levelEnc"]  = pre.m_levelEnc;
+                     info["levelDec"]  = pre.m_levelDec;
+                     info["paramsEnc"] = pre.m_paramsEnc; // std::vector<int32_t> -> list[int]
+                     info["paramsDec"] = pre.m_paramsDec;
+
+                     // 只暴露轻量级统计信息, 避免直接传输 ReadOnlyPlaintext/Ciphertext
+                     info["U0Pre_size"]        = pre.m_U0Pre.size();
+                     info["U0hatTPre_size"]    = pre.m_U0hatTPre.size();
+                     info["U0PreFFT_rows"]     = pre.m_U0PreFFT.size();
+                     info["U0hatTPreFFT_rows"] = pre.m_U0hatTPreFFT.size();
+
+                     out[py::int_(slots)] = std::move(info);
                  }
-                 vecRotateKey.push_back(std::make_tuple(
-                     keyIndex, vecAutomorphismKeyB, vecAutomorphismKeyA));
-               }
-             }
-             return vecRotateKey;
-           })
-      .def("GetEvalBootstrapAutoIdx2RotIdxMap", []
-      (CryptoContext<DCRTPoly> cc, uint32_t logBsSlots) {
-        SchemeBase_TWIN *scheme_ptr =
-                reinterpret_cast<SchemeBase_TWIN *>(cc->GetScheme().get());
-        using FindBootstrapRotationIndicesPtr = std::vector<int32_t> (FHECKKSRNS::*)(uint32_t, uint32_t);
-        FindBootstrapRotationIndicesPtr funcPtr = &FHECKKSRNS::FindBootstrapRotationIndices;
 
-        auto rotIndices = (dynamic_cast<FHECKKSRNS *>(scheme_ptr->m_FHE.get())->*funcPtr)
-                ((1<<logBsSlots),
-                cc->GetCryptoParameters()->GetElementParams()->GetRingDimension()*2);
+                 return out; })
+         .def("Getm_bootPrecomMap_paramsEnc", [](CryptoContext<DCRTPoly> cc)
+              {
+        SchemeBase_TWIN* scheme_ptr =
+            reinterpret_cast<SchemeBase_TWIN*>(cc->GetScheme().get());
+        auto fhe_ptr = reinterpret_cast<FHECKKSRNS_TWIN*>(
+            dynamic_cast<FHECKKSRNS*>(scheme_ptr->m_FHE.get()));
 
-//        auto autoIndices=cc->FindAutomorphismIndices(rotIndices); // do not accept std::vector<int> as input
-        std::vector<uint32_t> autoIndices(rotIndices.size());
-        for (size_t i = 0; i < rotIndices.size(); i++) {
-            if (rotIndices[i]<0)
-                rotIndices[i] = cc->GetCryptoParameters()->GetElementParams()->GetRingDimension()/2
-                        - std::abs(rotIndices[i]);
-            autoIndices[i] = cc->FindAutomorphismIndex(rotIndices[i]);
+        py::dict out; // { slots(int) : paramsEnc(list[int]) }
+        for (auto& it : fhe_ptr->m_bootPrecomMap) {
+            uint32_t slots = it.first;
+            const auto& precomPtr = it.second;
+            if (!precomPtr) {
+                continue;
+            }
+            const CKKSBootstrapPrecom& pre = *precomPtr;
+            out[py::int_(slots)] = pre.m_paramsEnc;
         }
+        return out; })
+         .def("Getm_bootPrecomMap_paramsDec", [](CryptoContext<DCRTPoly> cc)
+              {
+        SchemeBase_TWIN* scheme_ptr =
+            reinterpret_cast<SchemeBase_TWIN*>(cc->GetScheme().get());
+        auto fhe_ptr = reinterpret_cast<FHECKKSRNS_TWIN*>(
+            dynamic_cast<FHECKKSRNS*>(scheme_ptr->m_FHE.get()));
 
-        std::map<int, int> autoIdx2rotIdx_map;
-          for (size_t i = 0; i < autoIndices.size(); ++i) {
-            autoIdx2rotIdx_map[int(autoIndices[i])] = int(rotIndices[i]) ;
+        py::dict out; // { slots(int) : paramsDec(list[int]) }
+        for (auto& it : fhe_ptr->m_bootPrecomMap) {
+            uint32_t slots = it.first;
+            const auto& precomPtr = it.second;
+            if (!precomPtr) {
+                continue;
+            }
+            const CKKSBootstrapPrecom& pre = *precomPtr;
+            out[py::int_(slots)] = pre.m_paramsDec;
         }
-
-        return autoIdx2rotIdx_map;
-
-      })
-      .def("GetEvalBootstrapContext", [](CryptoContext<DCRTPoly> cc) {
+        return out; })
+         .def("GetEvalBootstrapContext", [](CryptoContext<DCRTPoly> cc)
+              {
         SchemeBase_TWIN *scheme_ptr =
             reinterpret_cast<SchemeBase_TWIN *>(cc->GetScheme().get());
         auto fhe_ptr = reinterpret_cast<FHECKKSRNS_TWIN *>(
@@ -1010,232 +1071,271 @@ void bind_crypto_context(py::module &m) {
                                                C2S_A, S2C_DIM, S2C_LIMBS,
                                                S2C_SF, S2C_A));
         }
-        return vecBootKey;
-      });
+        return vecBootKey; });
 
-  // Generator Functions
-  m.def("GenCryptoContext", &GenCryptoContext<CryptoContextBFVRNS>,
-        py::arg("params"));
-  m.def("GenCryptoContext", &GenCryptoContext<CryptoContextBGVRNS>,
-        py::arg("params"));
-  m.def("GenCryptoContext", &GenCryptoContext<CryptoContextCKKSRNS>,
-        py::arg("params"));
+     bind_crypto_context_templates<int64_t>(cc_class);
+     bind_crypto_context_templates<double>(cc_class);
+     bind_crypto_context_templates<std::complex<double>>(cc_class);
 
-  m.def("GetAllContexts", &CryptoContextFactory<DCRTPoly>::GetAllContexts);
+     // Generator Functions
+     m.def("GenCryptoContext", &GenCryptoContext<CryptoContextBFVRNS>,
+           py::arg("params"));
+     m.def("GenCryptoContext", &GenCryptoContext<CryptoContextBGVRNS>,
+           py::arg("params"));
+     m.def("GenCryptoContext", &GenCryptoContext<CryptoContextCKKSRNS>,
+           py::arg("params"));
 
-  m.def("ReleaseAllContexts",
-        &CryptoContextFactory<DCRTPoly>::ReleaseAllContexts);
-  m.def("ClearEvalMultKeys", &ClearEvalMultKeysWrapper);
+     m.def("GetAllContexts", &CryptoContextFactory<DCRTPoly>::GetAllContexts);
+
+     m.def("ReleaseAllContexts", &CryptoContextFactory<DCRTPoly>::ReleaseAllContexts);
+
+     m.def("ClearEvalMultKeys", static_cast<void (*)()>(&CryptoContextImpl<DCRTPoly>::ClearEvalMultKeys));
 }
 
-int get_native_int() {
+int get_native_int()
+{
 #if NATIVEINT == 128 && !defined(__EMSCRIPTEN__)
-  return 128;
+     return 128;
 #elif NATIVEINT == 32
-  return 32;
+     return 32;
 #else
-  return 64;
+     return 64;
 #endif
 }
 
-void bind_enums_and_constants(py::module &m) {
-  /* ---- PKE enums ---- */
-  // Scheme Types
-  py::enum_<SCHEME>(m, "SCHEME")
-      .value("INVALID_SCHEME", SCHEME::INVALID_SCHEME)
-      .value("CKKSRNS_SCHEME", SCHEME::CKKSRNS_SCHEME)
-      .value("BFVRNS_SCHEME", SCHEME::BFVRNS_SCHEME)
-      .value("BGVRNS_SCHEME", SCHEME::BGVRNS_SCHEME);
-  m.attr("INVALID_SCHEME") = py::cast(SCHEME::INVALID_SCHEME);
-  m.attr("CKKSRNS_SCHEME") = py::cast(SCHEME::CKKSRNS_SCHEME);
-  m.attr("BFVRNS_SCHEME") = py::cast(SCHEME::BFVRNS_SCHEME);
-  m.attr("BGVRNS_SCHEME") = py::cast(SCHEME::BGVRNS_SCHEME);
+std::pair<uint32_t, uint64_t> GetPRNGInternalState()
+{
+     auto &prng = lbcrypto::PseudoRandomNumberGenerator::GetPRNG();
+     auto engine = dynamic_cast<default_prng::Blake2Engine *>(&prng);
+     if (!engine)
+     {
+          throw std::runtime_error("Active PRNG instance is not Blake2Engine");
+     }
 
-  // PKE Features
-  py::enum_<PKESchemeFeature>(m, "PKESchemeFeature")
-      .value("PKE", PKESchemeFeature::PKE)
-      .value("KEYSWITCH", PKESchemeFeature::KEYSWITCH)
-      .value("PRE", PKESchemeFeature::PRE)
-      .value("LEVELEDSHE", PKESchemeFeature::LEVELEDSHE)
-      .value("ADVANCEDSHE", PKESchemeFeature::ADVANCEDSHE)
-      .value("MULTIPARTY", PKESchemeFeature::MULTIPARTY)
-      .value("FHE", PKESchemeFeature::FHE)
-      .value("SCHEMESWITCH", PKESchemeFeature::SCHEMESWITCH);
-  m.attr("PKE") = py::cast(PKESchemeFeature::PKE);
-  m.attr("KEYSWITCH") = py::cast(PKESchemeFeature::KEYSWITCH);
-  m.attr("PRE") = py::cast(PKESchemeFeature::PRE);
-  m.attr("LEVELEDSHE") = py::cast(PKESchemeFeature::LEVELEDSHE);
-  m.attr("ADVANCEDSHE") = py::cast(PKESchemeFeature::ADVANCEDSHE);
-  m.attr("MULTIPARTY") = py::cast(PKESchemeFeature::MULTIPARTY);
-  m.attr("FHE") = py::cast(PKESchemeFeature::FHE);
-  m.attr("SCHEMESWITCH") = py::cast(PKESchemeFeature::SCHEMESWITCH);
-
-  // Plaintext enums
-  py::enum_<Format>(m, "Format")
-      .value("EVALUATION", Format::EVALUATION)
-      .value("COEFFICIENT", Format::COEFFICIENT);
-  m.attr("EVALUATION") = py::cast(Format::EVALUATION);
-  m.attr("COEFFICIENT") = py::cast(Format::COEFFICIENT);
-  // Serialization Types
-  py::class_<SerType::SERJSON>(m, "SERJSON");
-  py::class_<SerType::SERBINARY>(m, "SERBINARY");
-  m.attr("JSON") = py::cast(SerType::JSON);
-  m.attr("BINARY") = py::cast(SerType::BINARY);
-
-  // Scaling Techniques
-  py::enum_<ScalingTechnique>(m, "ScalingTechnique")
-      .value("FIXEDMANUAL", ScalingTechnique::FIXEDMANUAL)
-      .value("FIXEDAUTO", ScalingTechnique::FIXEDAUTO)
-      .value("FLEXIBLEAUTO", ScalingTechnique::FLEXIBLEAUTO)
-      .value("FLEXIBLEAUTOEXT", ScalingTechnique::FLEXIBLEAUTOEXT)
-      .value("NORESCALE", ScalingTechnique::NORESCALE)
-      .value("INVALID_RS_TECHNIQUE", ScalingTechnique::INVALID_RS_TECHNIQUE);
-  m.attr("FIXEDMANUAL") = py::cast(ScalingTechnique::FIXEDMANUAL);
-  m.attr("FIXEDAUTO") = py::cast(ScalingTechnique::FIXEDAUTO);
-  m.attr("FLEXIBLEAUTO") = py::cast(ScalingTechnique::FLEXIBLEAUTO);
-  m.attr("FLEXIBLEAUTOEXT") = py::cast(ScalingTechnique::FLEXIBLEAUTOEXT);
-  m.attr("NORESCALE") = py::cast(ScalingTechnique::NORESCALE);
-  m.attr("INVALID_RS_TECHNIQUE") =
-      py::cast(ScalingTechnique::INVALID_RS_TECHNIQUE);
-
-  // Key Switching Techniques
-  py::enum_<KeySwitchTechnique>(m, "KeySwitchTechnique")
-      .value("INVALID_KS_TECH", KeySwitchTechnique::INVALID_KS_TECH)
-      .value("BV", KeySwitchTechnique::BV)
-      .value("HYBRID", KeySwitchTechnique::HYBRID);
-  m.attr("INVALID_KS_TECH") = py::cast(KeySwitchTechnique::INVALID_KS_TECH);
-  m.attr("BV") = py::cast(KeySwitchTechnique::BV);
-  m.attr("HYBRID") = py::cast(KeySwitchTechnique::HYBRID);
-
-  // Secret Key Dist
-  py::enum_<SecretKeyDist>(m, "SecretKeyDist")
-      .value("GAUSSIAN", SecretKeyDist::GAUSSIAN)
-      .value("UNIFORM_TERNARY", SecretKeyDist::UNIFORM_TERNARY)
-      .value("SPARSE_TERNARY", SecretKeyDist::SPARSE_TERNARY);
-  m.attr("GAUSSIAN") = py::cast(SecretKeyDist::GAUSSIAN);
-  m.attr("UNIFORM_TERNARY") = py::cast(SecretKeyDist::UNIFORM_TERNARY);
-  m.attr("SPARSE_TERNARY") = py::cast(SecretKeyDist::SPARSE_TERNARY);
-
-  // ProxyReEncryptionMode
-  py::enum_<ProxyReEncryptionMode>(m, "ProxyReEncryptionMode")
-      .value("NOT_SET", ProxyReEncryptionMode::NOT_SET)
-      .value("INDCPA", ProxyReEncryptionMode::INDCPA)
-      .value("FIXED_NOISE_HRA", ProxyReEncryptionMode::FIXED_NOISE_HRA)
-      .value("NOISE_FLOODING_HRA", ProxyReEncryptionMode::NOISE_FLOODING_HRA);
-  m.attr("NOT_SET") = py::cast(ProxyReEncryptionMode::NOT_SET);
-  m.attr("INDCPA") = py::cast(ProxyReEncryptionMode::INDCPA);
-  m.attr("FIXED_NOISE_HRA") = py::cast(ProxyReEncryptionMode::FIXED_NOISE_HRA);
-  m.attr("NOISE_FLOODING_HRA") =
-      py::cast(ProxyReEncryptionMode::NOISE_FLOODING_HRA);
-
-  // MultipartyMode
-  py::enum_<MultipartyMode>(m, "MultipartyMode")
-      .value("INVALID_MULTIPARTY_MODE", MultipartyMode::INVALID_MULTIPARTY_MODE)
-      .value("FIXED_NOISE_MULTIPARTY", MultipartyMode::FIXED_NOISE_MULTIPARTY)
-      .value("NOISE_FLOODING_MULTIPARTY",
-             MultipartyMode::NOISE_FLOODING_MULTIPARTY);
-  m.attr("INVALID_MULTIPARTY_MODE") =
-      py::cast(MultipartyMode::INVALID_MULTIPARTY_MODE);
-  m.attr("FIXED_NOISE_MULTIPARTY") =
-      py::cast(MultipartyMode::FIXED_NOISE_MULTIPARTY);
-  m.attr("NOISE_FLOODING_MULTIPARTY") =
-      py::cast(MultipartyMode::NOISE_FLOODING_MULTIPARTY);
-
-  // ExecutionMode
-  py::enum_<ExecutionMode>(m, "ExecutionMode")
-      .value("EXEC_EVALUATION", ExecutionMode::EXEC_EVALUATION)
-      .value("EXEC_NOISE_ESTIMATION", ExecutionMode::EXEC_NOISE_ESTIMATION);
-  m.attr("EXEC_EVALUATION") = py::cast(ExecutionMode::EXEC_EVALUATION);
-  m.attr("EXEC_NOISE_ESTIMATION") =
-      py::cast(ExecutionMode::EXEC_NOISE_ESTIMATION);
-
-  // DecryptionNoiseMode
-  py::enum_<DecryptionNoiseMode>(m, "DecryptionNoiseMode")
-      .value("FIXED_NOISE_DECRYPT", DecryptionNoiseMode::FIXED_NOISE_DECRYPT)
-      .value("NOISE_FLOODING_DECRYPT",
-             DecryptionNoiseMode::NOISE_FLOODING_DECRYPT);
-  m.attr("FIXED_NOISE_DECRYPT") =
-      py::cast(DecryptionNoiseMode::FIXED_NOISE_DECRYPT);
-  m.attr("NOISE_FLOODING_DECRYPT") =
-      py::cast(DecryptionNoiseMode::NOISE_FLOODING_DECRYPT);
-
-  // EncryptionTechnique
-  py::enum_<EncryptionTechnique>(m, "EncryptionTechnique")
-      .value("STANDARD", EncryptionTechnique::STANDARD)
-      .value("EXTENDED", EncryptionTechnique::EXTENDED);
-  m.attr("STANDARD") = py::cast(EncryptionTechnique::STANDARD);
-  m.attr("EXTENDED") = py::cast(EncryptionTechnique::EXTENDED);
-
-  // MultiplicationTechnique
-  py::enum_<MultiplicationTechnique>(m, "MultiplicationTechnique")
-      .value("BEHZ", MultiplicationTechnique::BEHZ)
-      .value("HPS", MultiplicationTechnique::HPS)
-      .value("HPSPOVERQ", MultiplicationTechnique::HPSPOVERQ)
-      .value("HPSPOVERQLEVELED", MultiplicationTechnique::HPSPOVERQLEVELED);
-  m.attr("BEHZ") = py::cast(MultiplicationTechnique::BEHZ);
-  m.attr("HPS") = py::cast(MultiplicationTechnique::HPS);
-  m.attr("HPSPOVERQ") = py::cast(MultiplicationTechnique::HPSPOVERQ);
-  m.attr("HPSPOVERQLEVELED") =
-      py::cast(MultiplicationTechnique::HPSPOVERQLEVELED);
-
-  // Compression Leval
-  py::enum_<COMPRESSION_LEVEL>(m, "COMPRESSION_LEVEL")
-      .value("COMPACT", COMPRESSION_LEVEL::COMPACT)
-      .value("SLACK", COMPRESSION_LEVEL::SLACK);
-  m.attr("COMPACT") = py::cast(COMPRESSION_LEVEL::COMPACT);
-  m.attr("SLACK") = py::cast(COMPRESSION_LEVEL::SLACK);
-
-  /* ---- CORE enums ---- */
-  // Security Level
-  py::enum_<SecurityLevel>(m, "SecurityLevel")
-      .value("HEStd_128_classic", SecurityLevel::HEStd_128_classic)
-      .value("HEStd_192_classic", SecurityLevel::HEStd_192_classic)
-      .value("HEStd_256_classic", SecurityLevel::HEStd_256_classic)
-      .value("HEStd_NotSet", SecurityLevel::HEStd_NotSet);
-  m.attr("HEStd_128_classic") = py::cast(SecurityLevel::HEStd_128_classic);
-  m.attr("HEStd_192_classic") = py::cast(SecurityLevel::HEStd_192_classic);
-  m.attr("HEStd_256_classic") = py::cast(SecurityLevel::HEStd_256_classic);
-  m.attr("HEStd_NotSet") = py::cast(SecurityLevel::HEStd_NotSet);
-
-  // Parameters Type
-  /*TODO (Oliveira): If we expose Poly's and ParmType, this block will go
-   * somewhere else */
-  using ParmType = typename DCRTPoly::Params;
-  py::class_<ParmType, std::shared_ptr<ParmType>>(m, "ParmType");
-
-  // NATIVEINT function
-  m.def("get_native_int", &get_native_int);
+     Blake2Engine_TWIN *twin = reinterpret_cast<Blake2Engine_TWIN *>(&prng);
+     uint64_t counter = twin->m_counter;
+     uint32_t bufferIndex = twin->m_bufferIndex;
+     return std::make_pair(bufferIndex, counter);
 }
 
-void bind_keys(py::module &m) {
-  py::class_<PublicKeyImpl<DCRTPoly>, std::shared_ptr<PublicKeyImpl<DCRTPoly>>>(
-      m, "PublicKey")
-      .def(py::init<>())
-      .def("GetKeyValue", [](const PublicKeyImpl<DCRTPoly>& pk) {
-                 std::vector<std::vector<uint64_t>> res;
-               auto elems = pk.GetPublicElements(); 
-               res.reserve(elems.size());
-               for (const auto& dcrt : elems) {
-                    std::vector<uint64_t> vec;
-                    size_t numTowers = dcrt.GetNumOfElements();
-                    for (size_t t = 0; t < numTowers; ++t) {
-                         const auto& tower = dcrt.GetElementAtIndex(t); 
-                         auto len = tower.GetValues().GetLength();
-                         vec.reserve(vec.size() + len);
-                         for (size_t k = 0; k < len; ++k) {
-                              vec.push_back(tower.at(k).ConvertToInt()); 
-                         }
-                    }
+size_t GetPRNGBufIndex()
+{
+     auto &prng = lbcrypto::PseudoRandomNumberGenerator::GetPRNG();
+     auto engine = dynamic_cast<default_prng::Blake2Engine *>(&prng);
+     if (!engine)
+     {
+          throw std::runtime_error("Active PRNG instance is not Blake2Engine");
+     }
 
-                    res.emplace_back(std::move(vec));
-               }
-               return res;
-             })
-      .def("GetKeyTag", &PublicKeyImpl<DCRTPoly>::GetKeyTag)
-      .def("SetKeyTag", &PublicKeyImpl<DCRTPoly>::SetKeyTag);
-  py::class_<PrivateKeyImpl<DCRTPoly>,
-             std::shared_ptr<PrivateKeyImpl<DCRTPoly>>>(m, "PrivateKey")
-      .def(py::init<>())
+     auto twin = reinterpret_cast<Blake2Engine_TWIN *>(&prng);
+     return twin->m_bufferIndex;
+}
+
+std::array<uint32_t, 16> GetPRNGSeed()
+{
+     auto &prng = lbcrypto::PseudoRandomNumberGenerator::GetPRNG();
+     auto engine = dynamic_cast<default_prng::Blake2Engine *>(&prng);
+     if (!engine)
+     {
+          throw std::runtime_error("Active PRNG instance is not Blake2Engine");
+     }
+
+     auto twin = reinterpret_cast<Blake2Engine_TWIN *>(engine);
+     return twin->m_seed;
+}
+void bind_enums_and_constants(py::module &m)
+{
+     /* ---- PKE enums ---- */
+     // Scheme Types
+     py::enum_<SCHEME>(m, "SCHEME")
+         .value("INVALID_SCHEME", SCHEME::INVALID_SCHEME)
+         .value("CKKSRNS_SCHEME", SCHEME::CKKSRNS_SCHEME)
+         .value("BFVRNS_SCHEME", SCHEME::BFVRNS_SCHEME)
+         .value("BGVRNS_SCHEME", SCHEME::BGVRNS_SCHEME);
+     m.attr("INVALID_SCHEME") = py::cast(SCHEME::INVALID_SCHEME);
+     m.attr("CKKSRNS_SCHEME") = py::cast(SCHEME::CKKSRNS_SCHEME);
+     m.attr("BFVRNS_SCHEME") = py::cast(SCHEME::BFVRNS_SCHEME);
+     m.attr("BGVRNS_SCHEME") = py::cast(SCHEME::BGVRNS_SCHEME);
+
+     // PKE Features
+     py::enum_<PKESchemeFeature>(m, "PKESchemeFeature")
+         .value("PKE", PKESchemeFeature::PKE)
+         .value("KEYSWITCH", PKESchemeFeature::KEYSWITCH)
+         .value("PRE", PKESchemeFeature::PRE)
+         .value("LEVELEDSHE", PKESchemeFeature::LEVELEDSHE)
+         .value("ADVANCEDSHE", PKESchemeFeature::ADVANCEDSHE)
+         .value("MULTIPARTY", PKESchemeFeature::MULTIPARTY)
+         .value("FHE", PKESchemeFeature::FHE)
+         .value("SCHEMESWITCH", PKESchemeFeature::SCHEMESWITCH);
+     m.attr("PKE") = py::cast(PKESchemeFeature::PKE);
+     m.attr("KEYSWITCH") = py::cast(PKESchemeFeature::KEYSWITCH);
+     m.attr("PRE") = py::cast(PKESchemeFeature::PRE);
+     m.attr("LEVELEDSHE") = py::cast(PKESchemeFeature::LEVELEDSHE);
+     m.attr("ADVANCEDSHE") = py::cast(PKESchemeFeature::ADVANCEDSHE);
+     m.attr("MULTIPARTY") = py::cast(PKESchemeFeature::MULTIPARTY);
+     m.attr("FHE") = py::cast(PKESchemeFeature::FHE);
+     m.attr("SCHEMESWITCH") = py::cast(PKESchemeFeature::SCHEMESWITCH);
+
+     // Plaintext enums
+     py::enum_<Format>(m, "Format")
+         .value("EVALUATION", Format::EVALUATION)
+         .value("COEFFICIENT", Format::COEFFICIENT);
+     m.attr("EVALUATION") = py::cast(Format::EVALUATION);
+     m.attr("COEFFICIENT") = py::cast(Format::COEFFICIENT);
+     // Serialization Types
+     py::class_<SerType::SERJSON>(m, "SERJSON");
+     py::class_<SerType::SERBINARY>(m, "SERBINARY");
+     m.attr("JSON") = py::cast(SerType::JSON);
+     m.attr("BINARY") = py::cast(SerType::BINARY);
+
+     // Scaling Techniques
+     py::enum_<ScalingTechnique>(m, "ScalingTechnique")
+         .value("FIXEDMANUAL", ScalingTechnique::FIXEDMANUAL)
+         .value("FIXEDAUTO", ScalingTechnique::FIXEDAUTO)
+         .value("FLEXIBLEAUTO", ScalingTechnique::FLEXIBLEAUTO)
+         .value("FLEXIBLEAUTOEXT", ScalingTechnique::FLEXIBLEAUTOEXT)
+         .value("NORESCALE", ScalingTechnique::NORESCALE)
+         .value("COMPOSITESCALINGAUTO", ScalingTechnique::COMPOSITESCALINGAUTO)
+         .value("COMPOSITESCALINGMANUAL", ScalingTechnique::COMPOSITESCALINGMANUAL)
+         .value("INVALID_RS_TECHNIQUE", ScalingTechnique::INVALID_RS_TECHNIQUE);
+     m.attr("FIXEDMANUAL") = py::cast(ScalingTechnique::FIXEDMANUAL);
+     m.attr("FIXEDAUTO") = py::cast(ScalingTechnique::FIXEDAUTO);
+     m.attr("FLEXIBLEAUTO") = py::cast(ScalingTechnique::FLEXIBLEAUTO);
+     m.attr("FLEXIBLEAUTOEXT") = py::cast(ScalingTechnique::FLEXIBLEAUTOEXT);
+     m.attr("NORESCALE") = py::cast(ScalingTechnique::NORESCALE);
+     m.attr("COMPOSITESCALINGAUTO") = py::cast(ScalingTechnique::COMPOSITESCALINGAUTO);
+     m.attr("COMPOSITESCALINGMANUAL") = py::cast(ScalingTechnique::COMPOSITESCALINGMANUAL);
+     m.attr("INVALID_RS_TECHNIQUE") = py::cast(ScalingTechnique::INVALID_RS_TECHNIQUE);
+
+     // Key Switching Techniques
+     py::enum_<KeySwitchTechnique>(m, "KeySwitchTechnique")
+         .value("INVALID_KS_TECH", KeySwitchTechnique::INVALID_KS_TECH)
+         .value("BV", KeySwitchTechnique::BV)
+         .value("HYBRID", KeySwitchTechnique::HYBRID);
+     m.attr("INVALID_KS_TECH") = py::cast(KeySwitchTechnique::INVALID_KS_TECH);
+     m.attr("BV") = py::cast(KeySwitchTechnique::BV);
+     m.attr("HYBRID") = py::cast(KeySwitchTechnique::HYBRID);
+
+     // Secret Key Dist
+     py::enum_<SecretKeyDist>(m, "SecretKeyDist")
+         .value("GAUSSIAN", SecretKeyDist::GAUSSIAN)
+         .value("UNIFORM_TERNARY", SecretKeyDist::UNIFORM_TERNARY)
+         .value("SPARSE_TERNARY", SecretKeyDist::SPARSE_TERNARY);
+     m.attr("GAUSSIAN") = py::cast(SecretKeyDist::GAUSSIAN);
+     m.attr("UNIFORM_TERNARY") = py::cast(SecretKeyDist::UNIFORM_TERNARY);
+     m.attr("SPARSE_TERNARY") = py::cast(SecretKeyDist::SPARSE_TERNARY);
+
+     // ProxyReEncryptionMode
+     py::enum_<ProxyReEncryptionMode>(m, "ProxyReEncryptionMode")
+         .value("NOT_SET", ProxyReEncryptionMode::NOT_SET)
+         .value("INDCPA", ProxyReEncryptionMode::INDCPA)
+         .value("FIXED_NOISE_HRA", ProxyReEncryptionMode::FIXED_NOISE_HRA)
+         .value("NOISE_FLOODING_HRA", ProxyReEncryptionMode::NOISE_FLOODING_HRA);
+     m.attr("NOT_SET") = py::cast(ProxyReEncryptionMode::NOT_SET);
+     m.attr("INDCPA") = py::cast(ProxyReEncryptionMode::INDCPA);
+     m.attr("FIXED_NOISE_HRA") = py::cast(ProxyReEncryptionMode::FIXED_NOISE_HRA);
+     m.attr("NOISE_FLOODING_HRA") = py::cast(ProxyReEncryptionMode::NOISE_FLOODING_HRA);
+
+     // MultipartyMode
+     py::enum_<MultipartyMode>(m, "MultipartyMode")
+         .value("INVALID_MULTIPARTY_MODE", MultipartyMode::INVALID_MULTIPARTY_MODE)
+         .value("FIXED_NOISE_MULTIPARTY", MultipartyMode::FIXED_NOISE_MULTIPARTY)
+         .value("NOISE_FLOODING_MULTIPARTY", MultipartyMode::NOISE_FLOODING_MULTIPARTY);
+     m.attr("INVALID_MULTIPARTY_MODE") = py::cast(MultipartyMode::INVALID_MULTIPARTY_MODE);
+     m.attr("FIXED_NOISE_MULTIPARTY") = py::cast(MultipartyMode::FIXED_NOISE_MULTIPARTY);
+     m.attr("NOISE_FLOODING_MULTIPARTY") = py::cast(MultipartyMode::NOISE_FLOODING_MULTIPARTY);
+
+     // ExecutionMode
+     py::enum_<ExecutionMode>(m, "ExecutionMode")
+         .value("EXEC_EVALUATION", ExecutionMode::EXEC_EVALUATION)
+         .value("EXEC_NOISE_ESTIMATION", ExecutionMode::EXEC_NOISE_ESTIMATION);
+     m.attr("EXEC_EVALUATION") = py::cast(ExecutionMode::EXEC_EVALUATION);
+     m.attr("EXEC_NOISE_ESTIMATION") = py::cast(ExecutionMode::EXEC_NOISE_ESTIMATION);
+
+     // DecryptionNoiseMode
+     py::enum_<DecryptionNoiseMode>(m, "DecryptionNoiseMode")
+         .value("FIXED_NOISE_DECRYPT", DecryptionNoiseMode::FIXED_NOISE_DECRYPT)
+         .value("NOISE_FLOODING_DECRYPT", DecryptionNoiseMode::NOISE_FLOODING_DECRYPT);
+     m.attr("FIXED_NOISE_DECRYPT") = py::cast(DecryptionNoiseMode::FIXED_NOISE_DECRYPT);
+     m.attr("NOISE_FLOODING_DECRYPT") = py::cast(DecryptionNoiseMode::NOISE_FLOODING_DECRYPT);
+
+     // EncryptionTechnique
+     py::enum_<EncryptionTechnique>(m, "EncryptionTechnique")
+         .value("STANDARD", EncryptionTechnique::STANDARD)
+         .value("EXTENDED", EncryptionTechnique::EXTENDED);
+     m.attr("STANDARD") = py::cast(EncryptionTechnique::STANDARD);
+     m.attr("EXTENDED") = py::cast(EncryptionTechnique::EXTENDED);
+
+     // MultiplicationTechnique
+     py::enum_<MultiplicationTechnique>(m, "MultiplicationTechnique")
+         .value("BEHZ", MultiplicationTechnique::BEHZ)
+         .value("HPS", MultiplicationTechnique::HPS)
+         .value("HPSPOVERQ", MultiplicationTechnique::HPSPOVERQ)
+         .value("HPSPOVERQLEVELED", MultiplicationTechnique::HPSPOVERQLEVELED);
+     m.attr("BEHZ") = py::cast(MultiplicationTechnique::BEHZ);
+     m.attr("HPS") = py::cast(MultiplicationTechnique::HPS);
+     m.attr("HPSPOVERQ") = py::cast(MultiplicationTechnique::HPSPOVERQ);
+     m.attr("HPSPOVERQLEVELED") = py::cast(MultiplicationTechnique::HPSPOVERQLEVELED);
+
+     // Compression Leval
+     py::enum_<COMPRESSION_LEVEL>(m, "COMPRESSION_LEVEL")
+         .value("COMPACT", COMPRESSION_LEVEL::COMPACT)
+         .value("SLACK", COMPRESSION_LEVEL::SLACK);
+     m.attr("COMPACT") = py::cast(COMPRESSION_LEVEL::COMPACT);
+     m.attr("SLACK") = py::cast(COMPRESSION_LEVEL::SLACK);
+
+     py::enum_<CKKSDataType>(m, "CKKSDataType")
+         .value("REAL", CKKSDataType::REAL)
+         .value("COMPLEX", CKKSDataType::COMPLEX);
+     m.attr("REAL") = py::cast(CKKSDataType::REAL);
+     m.attr("COMPLEX") = py::cast(CKKSDataType::COMPLEX);
+
+     /* ---- CORE enums ---- */
+     // Security Level
+     py::enum_<SecurityLevel>(m, "SecurityLevel")
+         .value("HEStd_128_classic", SecurityLevel::HEStd_128_classic)
+         .value("HEStd_192_classic", SecurityLevel::HEStd_192_classic)
+         .value("HEStd_256_classic", SecurityLevel::HEStd_256_classic)
+         .value("HEStd_NotSet", SecurityLevel::HEStd_NotSet);
+     m.attr("HEStd_128_classic") = py::cast(SecurityLevel::HEStd_128_classic);
+     m.attr("HEStd_192_classic") = py::cast(SecurityLevel::HEStd_192_classic);
+     m.attr("HEStd_256_classic") = py::cast(SecurityLevel::HEStd_256_classic);
+     m.attr("HEStd_NotSet") = py::cast(SecurityLevel::HEStd_NotSet);
+
+     // NATIVEINT function
+     m.def("get_native_int", &get_native_int);
+     m.def("getPRNGInternalState", &GetPRNGInternalState);
+     m.def("getPRNGSeed", &GetPRNGSeed);
+     m.def("getPRNGBufIndex", &GetPRNGBufIndex);
+}
+
+void bind_keys(py::module &m)
+{
+     py::class_<PublicKeyImpl<DCRTPoly>, std::shared_ptr<PublicKeyImpl<DCRTPoly>>>(m, "PublicKey")
+         .def(py::init<>())
+         .def("GetKeyValue", [](const PublicKeyImpl<DCRTPoly> &pk)
+              {
+                std::vector<std::vector<uint64_t>> result;
+                const auto& elements = pk.GetPublicElements();
+                result.reserve(elements.size());
+                for (const auto& dcrt : elements) {
+                    std::vector<uint64_t> flattened;
+                    const size_t numTowers = dcrt.GetNumOfElements();
+                    for (size_t t = 0; t < numTowers; ++t) {
+                        const auto& tower = dcrt.GetElementAtIndex(t);
+                        const auto len = tower.GetValues().GetLength();
+                        for (size_t k = 0; k < len; ++k) {
+                            flattened.push_back(tower.at(k).ConvertToInt<uint64_t>());
+                        }
+                    }
+                    result.emplace_back(std::move(flattened));
+                }
+                return result; })
+         .def("GetKeyTag", &PublicKeyImpl<DCRTPoly>::GetKeyTag)
+         .def("SetKeyTag", &PublicKeyImpl<DCRTPoly>::SetKeyTag);
+     py::class_<PrivateKeyImpl<DCRTPoly>, std::shared_ptr<PrivateKeyImpl<DCRTPoly>>>(m, "PrivateKey")
+         .def(py::init<>())
+         .def("GetCryptoContext", &PrivateKeyImpl<DCRTPoly>::GetCryptoContext)
       .def("GetKeyValue", [](const PrivateKeyImpl<DCRTPoly>& sk) {
           std::vector<uint64_t> res;
           const auto& dcrt = sk.GetPrivateElement();  // Secret key 只有 1 个 DCRTPoly
@@ -1248,250 +1348,375 @@ void bind_keys(py::module &m) {
                     res.push_back(tower.at(k).ConvertToInt());
                }
           }
-          return res;    
+          return res;
           })
-      .def("GetKeyTag", &PrivateKeyImpl<DCRTPoly>::GetKeyTag)
-      .def("SetKeyTag", &PrivateKeyImpl<DCRTPoly>::SetKeyTag);
-  py::class_<KeyPair<DCRTPoly>>(m, "KeyPair")
-      .def_readwrite("publicKey", &KeyPair<DCRTPoly>::publicKey)
-      .def_readwrite("secretKey", &KeyPair<DCRTPoly>::secretKey)
-      .def("good", &KeyPair<DCRTPoly>::good, kp_good_docs);
-  py::class_<EvalKeyImpl<DCRTPoly>, std::shared_ptr<EvalKeyImpl<DCRTPoly>>>(
-      m, "EvalKey")
-      .def(py::init<>())
-      .def("GetKeyTag", &EvalKeyImpl<DCRTPoly>::GetKeyTag)
-      .def("SetKeyTag", &EvalKeyImpl<DCRTPoly>::SetKeyTag);
-  py::class_<std::map<usint, EvalKey<DCRTPoly>>,
-             std::shared_ptr<std::map<usint, EvalKey<DCRTPoly>>>>(m,
-                                                                  "EvalKeyMap")
-      .def(py::init<>());
+         .def("GetKeyTag", &PrivateKeyImpl<DCRTPoly>::GetKeyTag)
+         .def("SetKeyTag", &PrivateKeyImpl<DCRTPoly>::SetKeyTag);
+     py::class_<KeyPair<DCRTPoly>>(m, "KeyPair")
+         .def_readwrite("publicKey", &KeyPair<DCRTPoly>::publicKey)
+         .def_readwrite("secretKey", &KeyPair<DCRTPoly>::secretKey)
+         .def("good", &KeyPair<DCRTPoly>::good, kp_good_docs);
+     py::class_<EvalKeyImpl<DCRTPoly>, std::shared_ptr<EvalKeyImpl<DCRTPoly>>>(m, "EvalKey")
+         .def(py::init<>())
+         .def("GetKeyTag", &EvalKeyImpl<DCRTPoly>::GetKeyTag)
+         .def("SetKeyTag", &EvalKeyImpl<DCRTPoly>::SetKeyTag);
+     py::class_<std::map<uint32_t, EvalKey<DCRTPoly>>, std::shared_ptr<std::map<uint32_t, EvalKey<DCRTPoly>>>>(m, "EvalKeyMap")
+         .def(py::init<>());
 }
 
-void bind_encodings(py::module &m) {
-  py::class_<PlaintextImpl, std::shared_ptr<PlaintextImpl>>(m, "Plaintext")
-      .def("GetScalingFactor", &PlaintextImpl::GetScalingFactor,
-           ptx_GetScalingFactor_docs)
-      .def("SetScalingFactor", &PlaintextImpl::SetScalingFactor,
-           ptx_SetScalingFactor_docs, py::arg("sf"))
-      .def("GetSchemeID", &PlaintextImpl::GetSchemeID, ptx_GetSchemeID_docs)
-      .def("GetLength", &PlaintextImpl::GetLength, ptx_GetLength_docs)
-      .def("GetSchemeID", &PlaintextImpl::GetSchemeID, ptx_GetSchemeID_docs)
-      .def("SetLength", &PlaintextImpl::SetLength, ptx_SetLength_docs,
-           py::arg("newSize"))
-      .def("IsEncoded", &PlaintextImpl::IsEncoded, ptx_IsEncoded_docs)
-      .def("GetLogPrecision", &PlaintextImpl::GetLogPrecision,
-           ptx_GetLogPrecision_docs)
-      .def("Encode", &PlaintextImpl::Encode, ptx_Encode_docs)
-      .def("Decode", &PlaintextImpl::Decode, ptx_Decode_docs)
-      .def("LowBound", &PlaintextImpl::LowBound, ptx_LowBound_docs)
-      .def("HighBound", &PlaintextImpl::HighBound, ptx_HighBound_docs)
-      .def("SetFormat", &PlaintextImpl::SetFormat, ptx_SetFormat_docs,
-           py::arg("fmt"))
-      .def("GetCoefPackedValue", &PlaintextImpl::GetCoefPackedValue)
-      .def("GetPackedValue", &PlaintextImpl::GetPackedValue)
-      .def("GetCKKSPackedValue", &PlaintextImpl::GetCKKSPackedValue,
-           ptx_GetCKKSPackedValue_docs)
-      .def("GetRealPackedValue", &PlaintextImpl::GetRealPackedValue,
-           ptx_GetRealPackedValue_docs)
-      .def("GetLevel", &PlaintextImpl::GetLevel)
-      .def("SetLevel", &PlaintextImpl::SetLevel)
-      .def("GetNoiseScaleDeg", &PlaintextImpl::GetNoiseScaleDeg)
-      .def("SetNoiseScaleDeg", &PlaintextImpl::SetNoiseScaleDeg)
-      .def("GetSlots", &PlaintextImpl::GetSlots)
-      .def("SetSlots", &PlaintextImpl::SetSlots)
-      .def("GetLogError", &PlaintextImpl::GetLogError)
-      .def("GetLogPrecision", &PlaintextImpl::GetLogPrecision)
-      .def("GetStringValue", &PlaintextImpl::GetStringValue)
-      .def("SetStringValue", &PlaintextImpl::SetStringValue)
-      .def("SetIntVectorValue", &PlaintextImpl::SetIntVectorValue)
-      .def("GetFormattedValues", &PlaintextImpl::GetFormattedValues)
-      .def("GetVectorOfData",
-           [](PlaintextImpl &plaintext) {
-             std::vector<std::vector<uint64_t>> res;
-             auto plaintextElements = plaintext.GetElement<DCRTPoly>();
-             for (size_t j = 0; j < plaintextElements.GetNumOfElements(); ++j) {
-               std::vector<uint64_t> vec;
-               auto &poly = plaintextElements.GetElementAtIndex(j);
-               for (size_t k = 0; k < poly.GetValues().GetLength(); ++k) {
-                 vec.push_back(uint64_t(poly.at(k)));
-               }
-               res.push_back(vec);
-             }
-             return res;
-           })
+// PlaintextImpl is an abstract class, so we should use a helper (trampoline) class
+class PlaintextImpl_helper : public PlaintextImpl
+{
+public:
+     using PlaintextImpl::PlaintextImpl; // inherited constructors
 
-      .def("__repr__",
-           [](const PlaintextImpl &p) {
-             std::stringstream ss;
-             ss << "<Plaintext Object: " << p << ">";
-             return ss.str();
-           })
-      .def("__str__", [](const PlaintextImpl &p) {
-        std::stringstream ss;
-        ss << p;
-        return ss.str();
-      });
-}
+     // the PlaintextImpl virtual functions' overrides
+     bool Encode() override
+     {
+          PYBIND11_OVERRIDE_PURE(
+              bool,          // return type
+              PlaintextImpl, // parent class
+              Encode         // function name
+                             // no arguments
+          );
+     }
+     bool Decode() override
+     {
+          PYBIND11_OVERRIDE_PURE(
+              bool,          // return type
+              PlaintextImpl, // parent class
+              Decode         // function name
+                             // no arguments
+          );
+     }
+     bool Decode(size_t depth, double scalingFactor, ScalingTechnique scalTech, ExecutionMode executionMode) override
+     {
+          PYBIND11_OVERRIDE(
+              bool,                                         // return type
+              PlaintextImpl,                                // parent class
+              Decode,                                       // function name
+              depth, scalingFactor, scalTech, executionMode // arguments
+          );
+     }
+     size_t GetLength() const override
+     {
+          PYBIND11_OVERRIDE_PURE(
+              size_t,        // return type
+              PlaintextImpl, // parent class
+              GetLength      // function name
+                             // no arguments
+          );
+     }
+     void SetLength(size_t newSize) override
+     {
+          PYBIND11_OVERRIDE(
+              void,          // return type
+              PlaintextImpl, // parent class
+              SetLength,     // function name
+              newSize        // arguments
+          );
+     }
+     double GetLogError() const override
+     {
+          PYBIND11_OVERRIDE(double, PlaintextImpl, GetLogError);
+     }
+     double GetLogPrecision() const override
+     {
+          PYBIND11_OVERRIDE(double, PlaintextImpl, GetLogPrecision);
+     }
+     const std::string &GetStringValue() const override
+     {
+          PYBIND11_OVERRIDE(const std::string &, PlaintextImpl, GetStringValue);
+     }
+     const std::vector<int64_t> &GetCoefPackedValue() const override
+     {
+          PYBIND11_OVERRIDE(const std::vector<int64_t> &, PlaintextImpl, GetCoefPackedValue);
+     }
+     const std::vector<int64_t> &GetPackedValue() const override
+     {
+          PYBIND11_OVERRIDE(const std::vector<int64_t> &, PlaintextImpl, GetPackedValue);
+     }
+     const std::vector<std::complex<double>> &GetCKKSPackedValue() const override
+     {
+          PYBIND11_OVERRIDE(const std::vector<std::complex<double>> &, PlaintextImpl, GetCKKSPackedValue);
+     }
+     std::vector<double> GetRealPackedValue() const override
+     {
+          PYBIND11_OVERRIDE(std::vector<double>, PlaintextImpl, GetRealPackedValue);
+     }
+     void SetStringValue(const std::string &str) override
+     {
+          PYBIND11_OVERRIDE(void, PlaintextImpl, SetStringValue, str);
+     }
+     void SetIntVectorValue(const std::vector<int64_t> &vec) override
+     {
+          PYBIND11_OVERRIDE(void, PlaintextImpl, SetIntVectorValue, vec);
+     }
+     std::string GetFormattedValues(int64_t precision) const override
+     {
+          PYBIND11_OVERRIDE(std::string, PlaintextImpl, GetFormattedValues, precision);
+     }
+};
 
-void bind_ciphertext(py::module &m) {
-  py::class_<CiphertextImpl<DCRTPoly>,
-             std::shared_ptr<CiphertextImpl<DCRTPoly>>>(m, "Ciphertext")
-      .def(py::init<>())
-      .def(
-          "__add__",
-          [](const Ciphertext<DCRTPoly> &a, const Ciphertext<DCRTPoly> &b) {
-            return a + b;
-          },
-          py::is_operator(), pybind11::keep_alive<0, 1>())
-      // .def(py::self + py::self);
-      // .def("GetDepth", &CiphertextImpl<DCRTPoly>::GetDepth)
-      // .def("SetDepth", &CiphertextImpl<DCRTPoly>::SetDepth)
-      .def("GetLevel", &CiphertextImpl<DCRTPoly>::GetLevel, ctx_GetLevel_docs)
-      .def("SetLevel", &CiphertextImpl<DCRTPoly>::SetLevel, ctx_SetLevel_docs,
-           py::arg("level"))
-      .def("Clone", &CiphertextImpl<DCRTPoly>::Clone)
-      .def("RemoveElement", &RemoveElementWrapper, cc_RemoveElement_docs)
-      .def("GetHopLevel", &CiphertextImpl<DCRTPoly>::GetHopLevel)
-      .def("SetHopLevel", &CiphertextImpl<DCRTPoly>::SetHopLevel)
-      .def("GetScalingFactor", &CiphertextImpl<DCRTPoly>::GetScalingFactor)
-      .def("SetScalingFactor", &CiphertextImpl<DCRTPoly>::SetScalingFactor)
-      .def("GetSlots", &CiphertextImpl<DCRTPoly>::GetSlots)
-      .def("SetSlots", &CiphertextImpl<DCRTPoly>::SetSlots)
-      .def("GetNoiseScaleDeg", &CiphertextImpl<DCRTPoly>::GetNoiseScaleDeg)
-      .def("SetNoiseScaleDeg", &CiphertextImpl<DCRTPoly>::SetNoiseScaleDeg)
-      .def(
-          "GetVectorOfData",
-          [](CiphertextImpl<DCRTPoly> &ciphertext) {
-            std::vector<std::vector<std::vector<uint64_t>>> res;
-            auto ciphertextElements = ciphertext.GetElements();
-            for (size_t i = 0; i < ciphertextElements.size(); ++i) {
-              std::vector<std::vector<uint64_t>> cv;
-              for (size_t j = 0; j < ciphertextElements[i].GetNumOfElements();
-                   ++j) {
-                std::vector<uint64_t> vec;
-                for (size_t k = 0; k < ciphertextElements[i]
-                                           .GetElementAtIndex(j)
-                                           .GetValues()
-                                           .GetLength();
-                     ++k) {
-                  vec.push_back(uint64_t(
-                      ciphertextElements[i].GetElementAtIndex(j).GetValues().at(
-                          k)));
+void bind_encodings(py::module &m)
+{
+     py::class_<PlaintextImpl, std::shared_ptr<PlaintextImpl>, PlaintextImpl_helper>(m, "Plaintext")
+         .def("GetScalingFactor", &PlaintextImpl::GetScalingFactor, ptx_GetScalingFactor_docs)
+         .def("SetScalingFactor", &PlaintextImpl::SetScalingFactor,
+              py::arg("sf"),
+              py::doc(ptx_SetScalingFactor_docs))
+         .def("GetSchemeID", &PlaintextImpl::GetSchemeID, ptx_GetSchemeID_docs)
+         .def("GetLength", &PlaintextImpl::GetLength, ptx_GetLength_docs)
+         .def("SetLength", &PlaintextImpl::SetLength,
+              py::arg("newSize"),
+              py::doc(ptx_SetLength_docs))
+         .def("IsEncoded", &PlaintextImpl::IsEncoded, ptx_IsEncoded_docs)
+         .def("GetLogPrecision", &PlaintextImpl::GetLogPrecision, ptx_GetLogPrecision_docs)
+         .def("Encode", &PlaintextImpl::Encode, ptx_Encode_docs)
+         .def("Decode", py::overload_cast<>(&PlaintextImpl::Decode), ptx_Decode_docs)
+         .def("Decode", py::overload_cast<size_t, double, ScalingTechnique, ExecutionMode>(&PlaintextImpl::Decode), ptx_Decode_docs)
+         .def("LowBound", &PlaintextImpl::LowBound, ptx_LowBound_docs)
+         .def("HighBound", &PlaintextImpl::HighBound, ptx_HighBound_docs)
+         .def("SetFormat", &PlaintextImpl::SetFormat,
+              py::arg("fmt"),
+              py::doc(ptx_SetFormat_docs))
+         .def("GetCoefPackedValue", &PlaintextImpl::GetCoefPackedValue)
+         .def("GetPackedValue", &PlaintextImpl::GetPackedValue)
+         .def("GetCKKSPackedValue", &PlaintextImpl::GetCKKSPackedValue, ptx_GetCKKSPackedValue_docs)
+         .def("GetRealPackedValue", &PlaintextImpl::GetRealPackedValue, ptx_GetRealPackedValue_docs)
+         .def("GetLevel", &PlaintextImpl::GetLevel)
+         .def("SetLevel", &PlaintextImpl::SetLevel)
+         .def("GetNoiseScaleDeg", &PlaintextImpl::GetNoiseScaleDeg)
+         .def("SetNoiseScaleDeg", &PlaintextImpl::SetNoiseScaleDeg)
+         .def("GetSlots", &PlaintextImpl::GetSlots)
+         .def("SetSlots", &PlaintextImpl::SetSlots)
+         .def("GetLogError", &PlaintextImpl::GetLogError)
+         .def("GetLogPrecision", &PlaintextImpl::GetLogPrecision)
+         .def("GetStringValue", &PlaintextImpl::GetStringValue)
+         .def("SetStringValue", &PlaintextImpl::SetStringValue)
+         .def("SetIntVectorValue", &PlaintextImpl::SetIntVectorValue)
+         .def("GetFormattedValues", &PlaintextImpl::GetFormattedValues)
+         .def("GetVectorOfData", [](PlaintextImpl &plaintext)
+              {
+                std::vector<std::vector<uint64_t>> result;
+                const auto& plaintextElement = plaintext.GetElement<DCRTPoly>();
+                const size_t numTowers = plaintextElement.GetNumOfElements();
+                result.reserve(numTowers);
+                for (size_t j = 0; j < numTowers; ++j) {
+                    std::vector<uint64_t> towerValues;
+                    const auto& poly = plaintextElement.GetElementAtIndex(j);
+                    const auto len = poly.GetValues().GetLength();
+                    towerValues.reserve(len);
+                    for (size_t k = 0; k < len; ++k) {
+                        towerValues.push_back(static_cast<uint64_t>(poly.at(k)));
+                    }
+                    result.emplace_back(std::move(towerValues));
                 }
-                cv.push_back(vec);
-              }
-              res.push_back(cv);
-            }
-            return res;
-          })
-      .def("SetVectorOfData",
-           [](CiphertextImpl<DCRTPoly> &ciphertext,
-              std::vector<std::vector<std::vector<uint64_t>>> data,
-              int cur_limb) {
-             // auto ciphertextElements = ciphertext.GetElements();
-             for (size_t i = 0; i < data.size(); ++i) {
-               ciphertext.GetElements()[i].DropLastElements(
-                   ciphertext.GetElements()[i].GetAllElements().size() -
-                   cur_limb);
-             }
-             for (size_t i = 0; i < data.size(); ++i) {
-               for (size_t j = 0; j < cur_limb; ++j) {
-                 for (size_t k = 0; k < data[i][j].size(); ++k) {
-                   ciphertext.GetElements()[i].GetAllElements()[j][k] =
-                       data[i][j][k];
-                 }
-               }
-             }
-           });
+                return result; })
+         .def("__repr__", [](const PlaintextImpl &p)
+              {
+                std::stringstream ss;
+                ss << "<Plaintext Object: " << p << ">";
+                return ss.str(); })
+         .def("__str__", [](const PlaintextImpl &p)
+              {
+                std::stringstream ss;
+                ss << p;
+                return ss.str(); });
 }
 
-void bind_schemes(py::module &m) {
-  /*Bind schemes specific functionalities like bootstrapping functions and
-   * multiparty*/
-  py::class_<FHECKKSRNS>(m, "FHECKKSRNS")
-      .def(py::init<>())
-      //.def_static("GetBootstrapDepth", &FHECKKSRNS::GetBootstrapDepth)
-      .def_static("GetBootstrapDepth",
-                  static_cast<uint32_t (*)(
-                      uint32_t, const std::vector<uint32_t> &, SecretKeyDist)>(
-                      &FHECKKSRNS::GetBootstrapDepth))
-      .def_static("GetBootstrapDepth",
-                  static_cast<uint32_t (*)(const std::vector<uint32_t> &,
-                                           SecretKeyDist)>(
-                      &FHECKKSRNS::GetBootstrapDepth));
+void bind_ciphertext(py::module &m)
+{
+     py::class_<CiphertextImpl<DCRTPoly>, std::shared_ptr<CiphertextImpl<DCRTPoly>>>(m, "Ciphertext")
+         .def(py::init<>())
+         .def("__add__", [](const Ciphertext<DCRTPoly> &a, const Ciphertext<DCRTPoly> &b)
+              { return a + b; }, py::is_operator(), pybind11::keep_alive<0, 1>())
+         // .def(py::self + py::self);
+         // .def("GetDepth", &CiphertextImpl<DCRTPoly>::GetDepth)
+         // .def("SetDepth", &CiphertextImpl<DCRTPoly>::SetDepth)
+         .def("GetLevel", &CiphertextImpl<DCRTPoly>::GetLevel, ctx_GetLevel_docs)
+         .def("SetLevel", &CiphertextImpl<DCRTPoly>::SetLevel, py::arg("level"), py::doc(ctx_SetLevel_docs))
+         .def("Clone", &CiphertextImpl<DCRTPoly>::Clone)
+         .def("RemoveElement", [](Ciphertext<DCRTPoly> &self, uint32_t index)
+              { self->GetElements().erase(self->GetElements().begin() + index); }, py::arg("index"), py::doc(cc_RemoveElement_docs))
+         .def("GetHopLevel", &CiphertextImpl<DCRTPoly>::GetHopLevel)
+         .def("SetHopLevel", &CiphertextImpl<DCRTPoly>::SetHopLevel)
+         .def("GetScalingFactor", &CiphertextImpl<DCRTPoly>::GetScalingFactor)
+         .def("SetScalingFactor", &CiphertextImpl<DCRTPoly>::SetScalingFactor)
+         .def("GetSlots", &CiphertextImpl<DCRTPoly>::GetSlots)
+         .def("SetSlots", &CiphertextImpl<DCRTPoly>::SetSlots)
+         .def("GetNoiseScaleDeg", &CiphertextImpl<DCRTPoly>::GetNoiseScaleDeg)
+         .def("SetNoiseScaleDeg", &CiphertextImpl<DCRTPoly>::SetNoiseScaleDeg)
+         .def("GetCryptoContext", &CiphertextImpl<DCRTPoly>::GetCryptoContext)
+         .def("GetEncodingType", &CiphertextImpl<DCRTPoly>::GetEncodingType)
+         .def("GetElements", [](const CiphertextImpl<DCRTPoly> &self) -> const std::vector<DCRTPoly> &
+              { return self.GetElements(); }, py::return_value_policy::reference_internal)
+         .def("GetElementsMutable", [](CiphertextImpl<DCRTPoly> &self) -> std::vector<DCRTPoly> &
+              { return self.GetElements(); }, py::return_value_policy::reference_internal)
+         .def("SetElements", [](CiphertextImpl<DCRTPoly> &self, const std::vector<DCRTPoly> &elems)
+              { self.SetElements(elems); })
+         .def("SetElementsMove", [](CiphertextImpl<DCRTPoly> &self, std::vector<DCRTPoly> &&elems)
+              { self.SetElements(std::move(elems)); })
+         .def("GetVectorOfData", [](CiphertextImpl<DCRTPoly> &ciphertext)
+              {
+                std::vector<std::vector<std::vector<uint64_t>>> result;
+                const auto& elements = ciphertext.GetElements();
+                result.reserve(elements.size());
+                for (const auto& dcrt : elements) {
+                    std::vector<std::vector<uint64_t>> towers;
+                    towers.reserve(dcrt.GetNumOfElements());
+                    for (size_t j = 0; j < dcrt.GetNumOfElements(); ++j) {
+                        std::vector<uint64_t> values;
+                        const auto& tower = dcrt.GetElementAtIndex(j);
+                        const auto& towerValues = tower.GetValues();
+                        const auto len = towerValues.GetLength();
+                        values.reserve(len);
+                        for (size_t k = 0; k < len; ++k) {
+                            values.push_back(static_cast<uint64_t>(towerValues.at(k)));
+                        }
+                        towers.emplace_back(std::move(values));
+                    }
+                    result.emplace_back(std::move(towers));
+                }
+                return result; })
+         .def("SetVectorOfData", [](CiphertextImpl<DCRTPoly> &ciphertext, const std::vector<std::vector<std::vector<uint64_t>>> &data, size_t curLimb)
+              {
+                auto& elements = ciphertext.GetElements();
+                if (elements.empty()) {
+                    OPENFHE_THROW("Ciphertext has no elements to set");
+                }
+                if (data.size() != elements.size()) {
+                    OPENFHE_THROW("Input data size does not match ciphertext element count");
+                }
+                for (size_t i = 0; i < elements.size(); ++i) {
+                    auto& dcrt = elements[i];
+                    const auto availableLimbs = dcrt.GetAllElements().size();
+                    if (curLimb > availableLimbs) {
+                        OPENFHE_THROW("Requested limb count exceeds ciphertext depth");
+                    }
+                    if (data[i].size() < curLimb) {
+                        OPENFHE_THROW("Input data for element " + std::to_string(i) + " has fewer limbs than requested");
+                    }
+                    if (availableLimbs > curLimb) {
+                        dcrt.DropLastElements(availableLimbs - curLimb);
+                    }
+                    for (size_t j = 0; j < curLimb; ++j) {
+                        auto& tower = dcrt.GetAllElements()[j];
+                        if (data[i][j].size() != tower.GetValues().GetLength()) {
+                            OPENFHE_THROW("Input vector length mismatch for element " + std::to_string(i));
+                        }
+                        for (size_t k = 0; k < data[i][j].size(); ++k) {
+                            tower[k] = data[i][j][k];
+                        }
+                    }
+                } }, py::arg("data"), py::arg("cur_limb"));
 }
 
-void bind_sch_swch_params(py::module &m) {
-  py::class_<SchSwchParams>(m, "SchSwchParams")
-      .def(py::init<>())
-      .def("GetSecurityLevelCKKS", &SchSwchParams::GetSecurityLevelCKKS)
-      .def("GetSecurityLevelFHEW", &SchSwchParams::GetSecurityLevelFHEW)
-      .def("GetArbitraryFunctionEvaluation",
-           &SchSwchParams::GetArbitraryFunctionEvaluation)
-      .def("GetUseDynamicModeFHEW", &SchSwchParams::GetUseDynamicModeFHEW)
-      .def("GetComputeArgmin", &SchSwchParams::GetComputeArgmin)
-      .def("GetOneHotEncoding", &SchSwchParams::GetOneHotEncoding)
-      .def("GetUseAltArgmin", &SchSwchParams::GetUseAltArgmin)
-      .def("GetNumSlotsCKKS", &SchSwchParams::GetNumSlotsCKKS)
-      .def("GetNumValues", &SchSwchParams::GetNumValues)
-      .def("GetCtxtModSizeFHEWLargePrec",
-           &SchSwchParams::GetCtxtModSizeFHEWLargePrec)
-      .def("GetCtxtModSizeFHEWIntermedSwch",
-           &SchSwchParams::GetCtxtModSizeFHEWIntermedSwch)
-      .def("GetBStepLTrCKKStoFHEW", &SchSwchParams::GetBStepLTrCKKStoFHEW)
-      .def("GetBStepLTrFHEWtoCKKS", &SchSwchParams::GetBStepLTrFHEWtoCKKS)
-      .def("GetLevelLTrCKKStoFHEW", &SchSwchParams::GetLevelLTrCKKStoFHEW)
-      .def("GetLevelLTrFHEWtoCKKS", &SchSwchParams::GetLevelLTrFHEWtoCKKS)
-      .def("GetInitialCKKSModulus", &SchSwchParams::GetInitialCKKSModulus)
-      .def("GetRingDimension", &SchSwchParams::GetRingDimension)
-      .def("GetScalingModSize", &SchSwchParams::GetScalingModSize)
-      .def("GetBatchSize", &SchSwchParams::GetBatchSize)
-      .def("SetSecurityLevelCKKS", &SchSwchParams::SetSecurityLevelCKKS)
-      .def("SetSecurityLevelFHEW", &SchSwchParams::SetSecurityLevelFHEW)
-      .def("SetArbitraryFunctionEvaluation",
-           &SchSwchParams::SetArbitraryFunctionEvaluation)
-      .def("SetUseDynamicModeFHEW", &SchSwchParams::SetUseDynamicModeFHEW)
-      .def("SetComputeArgmin", &SchSwchParams::SetComputeArgmin)
-      .def("SetOneHotEncoding", &SchSwchParams::SetOneHotEncoding)
-      .def("SetUseAltArgmin", &SchSwchParams::SetUseAltArgmin)
-      .def("SetNumSlotsCKKS", &SchSwchParams::SetNumSlotsCKKS)
-      .def("SetNumValues", &SchSwchParams::SetNumValues)
-      .def("SetCtxtModSizeFHEWLargePrec",
-           &SchSwchParams::SetCtxtModSizeFHEWLargePrec)
-      .def("SetCtxtModSizeFHEWIntermedSwch",
-           &SchSwchParams::SetCtxtModSizeFHEWIntermedSwch)
-      .def("SetBStepLTrCKKStoFHEW", &SchSwchParams::SetBStepLTrCKKStoFHEW)
-      .def("SetBStepLTrFHEWtoCKKS", &SchSwchParams::SetBStepLTrFHEWtoCKKS)
-      .def("SetLevelLTrCKKStoFHEW", &SchSwchParams::SetLevelLTrCKKStoFHEW)
-      .def("SetLevelLTrFHEWtoCKKS", &SchSwchParams::SetLevelLTrFHEWtoCKKS)
-      .def("SetInitialCKKSModulus", &SchSwchParams::SetInitialCKKSModulus)
-      .def("SetRingDimension", &SchSwchParams::SetRingDimension)
-      .def("SetScalingModSize", &SchSwchParams::SetScalingModSize)
-      .def("SetBatchSize", &SchSwchParams::SetBatchSize)
-      .def("__str__", [](const SchSwchParams &params) {
-        std::stringstream stream;
-        stream << params;
-        return stream.str();
-      });
+void bind_schemes(py::module &m)
+{
+     // Bind schemes specific functionalities like bootstrapping functions and multiparty
+     py::class_<FHECKKSRNS>(m, "FHECKKSRNS")
+         .def(py::init<>())
+         .def_static("GetBootstrapDepth",
+                     py::overload_cast<uint32_t, const std::vector<uint32_t> &, SecretKeyDist>(&FHECKKSRNS::GetBootstrapDepth),
+                     py::arg("depth"),
+                     py::arg("levelBudget"),
+                     py::arg("keyDist"))
+         .def_static("GetBootstrapDepth",
+                     py::overload_cast<const std::vector<uint32_t> &, SecretKeyDist>(&FHECKKSRNS::GetBootstrapDepth),
+                     py::arg("levelBudget"),
+                     py::arg("keyDist"));
 }
 
-PYBIND11_MODULE(openfhe, m) {
-  m.doc() = "Open-Source Fully Homomorphic Encryption Library";
-  // binfhe library
-  bind_binfhe_enums(m);
-  bind_binfhe_context(m);
-  bind_binfhe_keys(m);
-  bind_binfhe_ciphertext(m);
-  // pke library
-  bind_enums_and_constants(m);
-  bind_parameters<CryptoContextBFVRNS>(m, "CCParamsBFVRNS");
-  bind_parameters<CryptoContextBGVRNS>(m, "CCParamsBGVRNS");
-  bind_parameters<CryptoContextCKKSRNS>(m, "CCParamsCKKSRNS");
-  bind_encodings(m);
-  bind_ciphertext(m);
-  bind_keys(m);
-  bind_crypto_context(m);
-  bind_serialization(m);
-  bind_schemes(m);
-  bind_sch_swch_params(m);
+void bind_sch_swch_params(py::module &m)
+{
+     py::class_<SchSwchParams>(m, "SchSwchParams")
+         .def(py::init<>())
+         .def("GetSecurityLevelCKKS", &SchSwchParams::GetSecurityLevelCKKS)
+         .def("GetSecurityLevelFHEW", &SchSwchParams::GetSecurityLevelFHEW)
+         .def("GetArbitraryFunctionEvaluation", &SchSwchParams::GetArbitraryFunctionEvaluation)
+         .def("GetUseDynamicModeFHEW", &SchSwchParams::GetUseDynamicModeFHEW)
+         .def("GetComputeArgmin", &SchSwchParams::GetComputeArgmin)
+         .def("GetOneHotEncoding", &SchSwchParams::GetOneHotEncoding)
+         .def("GetUseAltArgmin", &SchSwchParams::GetUseAltArgmin)
+         .def("GetNumSlotsCKKS", &SchSwchParams::GetNumSlotsCKKS)
+         .def("GetNumValues", &SchSwchParams::GetNumValues)
+         .def("GetCtxtModSizeFHEWLargePrec", &SchSwchParams::GetCtxtModSizeFHEWLargePrec)
+         .def("GetCtxtModSizeFHEWIntermedSwch", &SchSwchParams::GetCtxtModSizeFHEWIntermedSwch)
+         .def("GetBStepLTrCKKStoFHEW", &SchSwchParams::GetBStepLTrCKKStoFHEW)
+         .def("GetBStepLTrFHEWtoCKKS", &SchSwchParams::GetBStepLTrFHEWtoCKKS)
+         .def("GetLevelLTrCKKStoFHEW", &SchSwchParams::GetLevelLTrCKKStoFHEW)
+         .def("GetLevelLTrFHEWtoCKKS", &SchSwchParams::GetLevelLTrFHEWtoCKKS)
+         .def("GetInitialCKKSModulus", &SchSwchParams::GetInitialCKKSModulus)
+         .def("GetRingDimension", &SchSwchParams::GetRingDimension)
+         .def("GetScalingModSize", &SchSwchParams::GetScalingModSize)
+         .def("GetBatchSize", &SchSwchParams::GetBatchSize)
+         .def("SetSecurityLevelCKKS", &SchSwchParams::SetSecurityLevelCKKS)
+         .def("SetSecurityLevelFHEW", &SchSwchParams::SetSecurityLevelFHEW)
+         .def("SetArbitraryFunctionEvaluation", &SchSwchParams::SetArbitraryFunctionEvaluation)
+         .def("SetUseDynamicModeFHEW", &SchSwchParams::SetUseDynamicModeFHEW)
+         .def("SetComputeArgmin", &SchSwchParams::SetComputeArgmin)
+         .def("SetOneHotEncoding", &SchSwchParams::SetOneHotEncoding)
+         .def("SetUseAltArgmin", &SchSwchParams::SetUseAltArgmin)
+         .def("SetNumSlotsCKKS", &SchSwchParams::SetNumSlotsCKKS)
+         .def("SetNumValues", &SchSwchParams::SetNumValues)
+         .def("SetCtxtModSizeFHEWLargePrec", &SchSwchParams::SetCtxtModSizeFHEWLargePrec)
+         .def("SetCtxtModSizeFHEWIntermedSwch", &SchSwchParams::SetCtxtModSizeFHEWIntermedSwch)
+         .def("SetBStepLTrCKKStoFHEW", &SchSwchParams::SetBStepLTrCKKStoFHEW)
+         .def("SetBStepLTrFHEWtoCKKS", &SchSwchParams::SetBStepLTrFHEWtoCKKS)
+         .def("SetLevelLTrCKKStoFHEW", &SchSwchParams::SetLevelLTrCKKStoFHEW)
+         .def("SetLevelLTrFHEWtoCKKS", &SchSwchParams::SetLevelLTrFHEWtoCKKS)
+         .def("SetInitialCKKSModulus", &SchSwchParams::SetInitialCKKSModulus)
+         .def("SetRingDimension", &SchSwchParams::SetRingDimension)
+         .def("SetScalingModSize", &SchSwchParams::SetScalingModSize)
+         .def("SetBatchSize", &SchSwchParams::SetBatchSize)
+         .def("__str__", [](const SchSwchParams &params)
+              {
+                std::stringstream stream;
+                stream << params;
+                return stream.str(); });
+}
+
+void bind_utils(py::module &m)
+{
+     m.def("EnablePrecomputeCRTTablesAfterDeserializaton", &lbcrypto::EnablePrecomputeCRTTablesAfterDeserializaton,
+           py::doc("Enable CRT precomputation after deserialization"));
+     m.def("DisablePrecomputeCRTTablesAfterDeserializaton", &lbcrypto::DisablePrecomputeCRTTablesAfterDeserializaton,
+           py::doc("Disable CRT precomputation after deserialization"));
+     // m.def("GetPRNGInternalState", []()
+     //       {
+     //            auto &prng = lbcrypto::PseudoRandomNumberGenerator::GetPRNG();
+     //            auto engine = dynamic_cast<default_prng::Blake2Engine *>(&prng);
+     //            if (!engine)
+     //            {
+     //                 throw std::runtime_error("Active PRNG instance is not Blake2Engine");
+     //            }
+
+     //            auto twin = HijackBlake2Engine(engine);
+     //            return py::make_tuple(twin->m_counter, twin->m_bufferIndex); }, py::doc("Expose the Blake2Engine counter and buffer index for debugging"));
+}
+
+PYBIND11_MODULE(openfhe, m)
+{
+     // sequence of function calls matters
+     m.doc() = "Open-Source Fully Homomorphic Encryption Library";
+     bind_DCRTPoly(m);
+     // binfhe library
+     bind_binfhe_enums(m);
+     bind_binfhe_ciphertext(m);
+     bind_binfhe_keys(m);
+     bind_binfhe_context(m);
+     // pke library
+     bind_enums_and_constants(m);
+     bind_parameters<CryptoContextBFVRNS>(m, "CCParamsBFVRNS");
+     bind_parameters<CryptoContextBGVRNS>(m, "CCParamsBGVRNS");
+     bind_parameters<CryptoContextCKKSRNS>(m, "CCParamsCKKSRNS");
+     bind_encodings(m);
+     bind_ciphertext(m);
+     bind_keys(m);
+     bind_crypto_context(m);
+     bind_serialization(m);
+     bind_schemes(m);
+     bind_sch_swch_params(m);
+     bind_utils(m);
 }
