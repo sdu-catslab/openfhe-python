@@ -1236,6 +1236,20 @@ void bind_keys(py::module &m) {
   py::class_<PrivateKeyImpl<DCRTPoly>,
              std::shared_ptr<PrivateKeyImpl<DCRTPoly>>>(m, "PrivateKey")
       .def(py::init<>())
+      .def("GetKeyValue", [](const PrivateKeyImpl<DCRTPoly>& sk) {
+          std::vector<uint64_t> res;
+          const auto& dcrt = sk.GetPrivateElement();  // Secret key 只有 1 个 DCRTPoly
+          size_t numTowers = dcrt.GetNumOfElements();
+          for (size_t t = 0; t < numTowers; ++t) {
+               const auto& tower = dcrt.GetElementAtIndex(t);
+               auto len = tower.GetValues().GetLength();
+               res.reserve(res.size() + len);
+               for (size_t k = 0; k < len; ++k) {
+                    res.push_back(tower.at(k).ConvertToInt());
+               }
+          }
+          return res;    
+          })
       .def("GetKeyTag", &PrivateKeyImpl<DCRTPoly>::GetKeyTag)
       .def("SetKeyTag", &PrivateKeyImpl<DCRTPoly>::SetKeyTag);
   py::class_<KeyPair<DCRTPoly>>(m, "KeyPair")
